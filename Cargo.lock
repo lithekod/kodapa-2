@@ -399,8 +399,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "kodapa2"
-version = "0.1.0"
+name = "kodapa-2"
+version = "0.0.0"
 dependencies = [
  "futures-util",
  "tokio",
