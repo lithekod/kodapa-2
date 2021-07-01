@@ -57,7 +57,7 @@ async fn handle_event(
     http: HttpClient,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     match event {
-        Event::MessageCreate(msg) if msg.content == "!ping" => {
+        Event::MessageCreate(box msg) if msg.content == "!ping" => {
             http.create_message(msg.channel_id).content("Pong!")?.await?;
         }
         Event::ShardConnected(_) => {
