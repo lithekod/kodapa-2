@@ -8,7 +8,7 @@ use twilight_http::Client as HttpClient;
 use twilight_model::{application::{callback::{CallbackData, InteractionResponse}, interaction::{ApplicationCommand, Interaction, application_command::{CommandData, CommandDataOption}}}, gateway::{Intents, payload::InteractionCreate}};
 
 fn main() {
-    let token = env::var("DISCORD_TOKEN").expect("Set the Discord bot token via env variable DISCORD_TOKEN");
+    let token = env::var("DISCORD_BOT_TOKEN").expect("Set the Discord bot token via env variable DISCORD_TOKEN");
 
     let rt = tokio::runtime::Runtime::new().unwrap();
     rt.block_on(handle_discord(&token));
