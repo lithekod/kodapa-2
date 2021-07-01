@@ -1,4 +1,4 @@
-import config.env as config
+import config
 import requests
 
 # See https://discord.com/developers/docs/interactions/slash-commands#registering-a-command
