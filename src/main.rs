@@ -1,9 +1,11 @@
+#![feature(box_patterns)]
+
 use std::{env, error::Error};
 use futures_util::stream::StreamExt;
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{cluster::{Cluster, ShardScheme}, Event};
 use twilight_http::Client as HttpClient;
-use twilight_model::gateway::Intents;
+use twilight_model::{application::{callback::{CallbackData, InteractionResponse}, interaction::{ApplicationCommand, Interaction, application_command::{CommandData, CommandDataOption}}}, gateway::{Intents, payload::InteractionCreate}};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -59,6 +61,9 @@ async fn handle_event(
         Event::ShardConnected(_) => {
             println!("Connected on shard {}", shard_id);
         }
+        Event::InteractionCreate(box interaction) => {
+            handle_interaction(interaction, &http).await;
+        }
         // Other events here...
         event => {
             println!("{:?}", event);
@@ -66,4 +71,44 @@ async fn handle_event(
     }
 
     Ok(())
+}
+
+async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
+    match interaction.0 {
+        Interaction::Ping(_) => println!("pong (interaction)"),
+        Interaction::ApplicationCommand(box ApplicationCommand {
+            data: CommandData {
+                name: _cmd_name,
+                options: cmd_options,
+                ..
+            },
+            id,
+            member: _member,
+            token,
+            ..
+        }) => {
+            let _title = cmd_options.iter().find_map(|option| {
+                if let CommandDataOption::String { name, value } = option {
+                    if name == "title" {
+                        return Some(value);
+                    }
+                }
+                None
+            });
+            http.interaction_callback(
+                id,
+                token,
+                InteractionResponse::ChannelMessageWithSource(
+                    CallbackData {
+                        allowed_mentions: None,
+                        flags: None,
+                        tts: None,
+                        content: Some(format!("ok")),
+                        embeds: Default::default(),
+                    },
+                )
+            ).await.unwrap();
+        }
+        i => println!("unhandled interaction: {:?}", i),
+    }
 }
