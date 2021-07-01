@@ -1,15 +1,15 @@
 [package]
-name = "kodapa2"
-version = "0.1.0"
+name = "kodapa-2"
+version = "0.0.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 
+futures-util = "0.3"
+tokio = { version = "1", features = ["full"] }
 twilight-cache-inmemory = "0.5"
 twilight-gateway = "0.5"
 twilight-http = "0.5"
 twilight-model = "0.5"
-tokio = { version = "1", features = ["full"] }
-futures-util = "0.3"
