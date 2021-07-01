@@ -60,7 +60,9 @@ async fn handle_event(
             println!("Connected on shard {}", shard_id);
         }
         // Other events here...
-        _ => {}
+        event => {
+            println!("{:?}", event);
+        }
     }
 
     Ok(())
