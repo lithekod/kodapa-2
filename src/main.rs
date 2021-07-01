@@ -7,19 +7,23 @@ use twilight_gateway::{cluster::{Cluster, ShardScheme}, Event};
 use twilight_http::Client as HttpClient;
 use twilight_model::{application::{callback::{CallbackData, InteractionResponse}, interaction::{ApplicationCommand, Interaction, application_command::{CommandData, CommandDataOption}}}, gateway::{Intents, payload::InteractionCreate}};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let token = env::var("DISCORD_TOKEN")?;
+fn main() {
+    let token = env::var("DISCORD_TOKEN").expect("Set the Discord bot token via env variable DISCORD_TOKEN");
 
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(handle_discord(&token));
+}
+
+async fn handle_discord(token: &str) {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
 
     // Use intents to only receive guild message events.
-    let (cluster, mut events) = Cluster::builder(&token, Intents::GUILD_MESSAGES)
+    let (cluster, mut events) = Cluster::builder(token, Intents::GUILD_MESSAGES)
         .shard_scheme(scheme)
         .build()
-        .await?;
+        .await.unwrap();
 
     // Start up the cluster.
     let cluster_spawn = cluster.clone();
@@ -30,7 +34,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     });
 
     // HTTP is separate from the gateway, so create a new client.
-    let http = HttpClient::new(&token);
+    let http = HttpClient::new(token);
 
     // Since we only care about new messages, make the cache only
     // cache new messages.
@@ -45,8 +49,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
         tokio::spawn(handle_event(shard_id, event, http.clone()));
     }
-
-    Ok(())
 }
 
 async fn handle_event(
