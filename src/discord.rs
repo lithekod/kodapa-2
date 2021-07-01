@@ -1,6 +1,5 @@
-use super::Result;
-
 use futures_util::stream::StreamExt;
+use tokio::sync::mpsc;
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{cluster::{Cluster, ShardScheme}, Event};
 use twilight_http::Client as HttpClient;
@@ -9,7 +8,11 @@ use twilight_model::application::interaction::application_command::{CommandData,
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
 
-pub async fn handle(token: &str) -> Result<()> {
+use crate::kodapa;
+
+use super::Result;
+
+pub async fn handle(token: &str, _agenda_sender: mpsc::UnboundedSender<kodapa::MeetingPoint>) -> Result<()> {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
