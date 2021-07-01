@@ -4,7 +4,10 @@ use futures_util::stream::StreamExt;
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{cluster::{Cluster, ShardScheme}, Event};
 use twilight_http::Client as HttpClient;
-use twilight_model::{application::{callback::{CallbackData, InteractionResponse}, interaction::{ApplicationCommand, Interaction, application_command::{CommandData, CommandDataOption}}}, gateway::{Intents, payload::InteractionCreate}};
+use twilight_model::application::callback::{CallbackData, InteractionResponse};
+use twilight_model::application::interaction::application_command::{CommandData, CommandDataOption};
+use twilight_model::application::interaction::{ApplicationCommand, Interaction};
+use twilight_model::gateway::{Intents, payload::InteractionCreate};
 
 pub(crate) async fn handle(token: &str) -> Result<()> {
     // This is the default scheme. It will automatically create as many
@@ -51,9 +54,6 @@ async fn handle_event(
     http: HttpClient,
 ) -> Result<()> {
     match event {
-        Event::MessageCreate(box msg) if msg.content == "!ping" => {
-            http.create_message(msg.channel_id).content("Pong!")?.await?;
-        }
         Event::ShardConnected(_) => {
             println!("Connected on shard {}", shard_id);
         }
