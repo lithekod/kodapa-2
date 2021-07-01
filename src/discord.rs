@@ -9,7 +9,7 @@ use twilight_model::application::interaction::application_command::{CommandData,
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
 
-pub(crate) async fn handle(token: &str) -> Result<()> {
+pub async fn handle(token: &str) -> Result<()> {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
