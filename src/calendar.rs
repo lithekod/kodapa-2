@@ -6,6 +6,8 @@ use yup_oauth2::AccessToken;
 
 use crate::calendar::model::events::EventsListResponse;
 
+use self::model::events::EventsListRequest;
+
 pub mod model;
 
 const BASE_URL: &'static str = "https://www.googleapis.com/calendar/v3/";
@@ -16,11 +18,12 @@ const SCOPES: [&'static str; 1] = [
 pub async fn handle() {
     let token = token().await;
 
-    let _events = events(&token, "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com").await;
-}
-
-pub fn url(endpoint: &str, params: &[(&str, &str)]) -> Url {
-    Url::parse_with_params(&format!("{}{}", BASE_URL, endpoint), params).unwrap()
+    let calendar_id =  "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
+    let request = EventsListRequest::new(calendar_id)
+        .max_results(6)
+        .single_events(true)
+        .time_min( "2021-07-06T00:00:00Z".to_string());
+    let _events = events(&token, request).await;
 }
 
 async fn token() -> AccessToken {
@@ -52,15 +55,8 @@ async fn parse_json_body<T: DeserializeOwned>(body: Body) -> T {
     serde_json::from_slice(&bytes).unwrap()
 }
 
-async fn events(token: &AccessToken, calendar_id: &str) -> Vec<model::events::Event> {
-    let url = url(
-        &format!("calendars/{}/events", calendar_id),
-        &[
-            ("maxResults", "6"),
-            ("singleEvents", "true"),
-            ("timeMin", "2021-07-06T00:00:00Z"),
-        ],
-    );
+async fn events(token: &AccessToken, parameters: model::events::EventsListRequest) -> Vec<model::events::Event> {
+    let url = parameters.to_url(BASE_URL).unwrap();
     let event_list: EventsListResponse = parse_json_body(request(token, &url, Body::empty()).await).await;
     println!("{:#?}", event_list);
     Vec::new()
