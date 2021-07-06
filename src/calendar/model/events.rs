@@ -25,7 +25,7 @@ macro_rules! impl_builder {
 macro_rules! impl_get {
     ( $( $field:ident : $ty:ty),* $(,)? ) => {
         $(
-            pub fn $field(&self) -> &$ty {
+            pub fn $field(&self) -> $ty {
                 &self.$field
             }
         )*
@@ -122,9 +122,9 @@ pub struct EventsListResponse {
 }
 
 impl EventsListResponse {
-    pub fn items(&self) -> &[Event] {
-        &self.items
-    }
+    impl_get!(
+        items: &[Event]
+    );
 }
 
 #[derive(Debug)]
@@ -139,9 +139,9 @@ pub struct Event {
 
 impl Event {
     impl_get!(
-        start: Timestamp,
-        end: Timestamp,
-        location: Option<String>,
-        summary: str,
+        start: &Timestamp,
+        end: &Timestamp,
+        location: &Option<String>,
+        summary: &str,
     );
 }
