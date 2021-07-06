@@ -56,9 +56,9 @@ impl EventsListRequest {
         time_min: Option<String>,
     );
 
-    pub async fn request(self, base_url: &str, token: &AccessToken) -> EventsListResponse {
-        let url = self.to_url(base_url).unwrap();
-        parse_json_body(request(token, &url, Body::empty()).await).await
+    pub async fn request(self, base_url: &str, token: &AccessToken) -> Option<EventsListResponse> {
+        let url = self.to_url(base_url).ok()?;
+        parse_json_body(request(token, &url, Body::empty()).await?).await
     }
 
     pub fn to_url(&self, base: &str) -> Result<Url, url::ParseError> {
