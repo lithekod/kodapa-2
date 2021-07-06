@@ -22,6 +22,16 @@ macro_rules! impl_builder {
     }
 }
 
+macro_rules! impl_get {
+    ( $( $field:ident : $ty:ty),* $(,)? ) => {
+        $(
+            pub fn $field(&self) -> &$ty {
+                &self.$field
+            }
+        )*
+    };
+}
+
 #[derive(Debug)]
 pub struct EventsListRequest {
     calendar_id: String,
@@ -121,8 +131,17 @@ impl EventsListResponse {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
-    start: Option<Timestamp>,
-    end: Option<Timestamp>,
+    start: Timestamp,
+    end: Timestamp,
     location: Option<String>,
-    summary: Option<String>,
+    summary: String,
+}
+
+impl Event {
+    impl_get!(
+        start: Timestamp,
+        end: Timestamp,
+        location: Option<String>,
+        summary: str,
+    );
 }
