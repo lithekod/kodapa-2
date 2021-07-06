@@ -2,8 +2,12 @@
 //!
 //! See `https://developers.google.com/calendar/api/v3/reference/events`.
 
+use hyper::Body;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use yup_oauth2::AccessToken;
+
+use crate::calendar::{parse_json_body, request};
 
 use super::Timestamp;
 
@@ -51,6 +55,11 @@ impl EventsListRequest {
         time_max: Option<String>,
         time_min: Option<String>,
     );
+
+    pub async fn request(self, base_url: &str, token: &AccessToken) -> EventsListResponse {
+        let url = self.to_url(base_url).unwrap();
+        parse_json_body(request(token, &url, Body::empty()).await).await
+    }
 
     pub fn to_url(&self, base: &str) -> Result<Url, url::ParseError> {
         let params = self.params();
@@ -100,6 +109,12 @@ impl EventsListRequest {
 pub struct EventsListResponse {
     items: Vec<Event>,
     next_page_token: Option<String>,
+}
+
+impl EventsListResponse {
+    pub fn items(&self) -> &[Event] {
+        &self.items
+    }
 }
 
 #[derive(Debug)]

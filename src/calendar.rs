@@ -4,11 +4,9 @@ use serde::de::DeserializeOwned;
 use url::Url;
 use yup_oauth2::AccessToken;
 
-use crate::calendar::model::events::EventsListResponse;
-
 use self::model::events::EventsListRequest;
 
-pub mod model;
+mod model;
 
 const BASE_URL: &'static str = "https://www.googleapis.com/calendar/v3/";
 const SCOPES: [&'static str; 1] = [
@@ -23,7 +21,7 @@ pub async fn handle() {
         .max_results(6)
         .single_events(true)
         .time_min( "2021-07-06T00:00:00Z".to_string());
-    let _events = events(&token, request).await;
+    println!("{:#?}", request.request(BASE_URL, &token).await);
 }
 
 async fn token() -> AccessToken {
@@ -54,11 +52,3 @@ async fn parse_json_body<T: DeserializeOwned>(body: Body) -> T {
     let bytes = hyper::body::to_bytes(body).await.unwrap();
     serde_json::from_slice(&bytes).unwrap()
 }
-
-async fn events(token: &AccessToken, parameters: model::events::EventsListRequest) -> Vec<model::events::Event> {
-    let url = parameters.to_url(BASE_URL).unwrap();
-    let event_list: EventsListResponse = parse_json_body(request(token, &url, Body::empty()).await).await;
-    println!("{:#?}", event_list);
-    Vec::new()
-}
-
