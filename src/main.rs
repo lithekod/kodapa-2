@@ -1,10 +1,8 @@
-#![feature(box_patterns)]
-
 use std::{env, error::Error};
 use tokio::{join, sync::{broadcast, mpsc}};
 
-mod kodapa;
 mod discord;
+mod kodapa;
 
 type Result<T> = ::std::result::Result<T, Box<dyn Error + Send + Sync>>;
 

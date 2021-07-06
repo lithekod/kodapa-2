@@ -64,8 +64,8 @@ async fn handle_event(
         Event::ShardConnected(_) => {
             println!("Connected on shard {}", shard_id);
         }
-        Event::InteractionCreate(box interaction) => {
-            handle_interaction(interaction, &http).await?;
+        Event::InteractionCreate(interaction) => {
+            handle_interaction(*interaction, &http).await?;
         }
         // Other events here...
         event => {
@@ -79,17 +79,18 @@ async fn handle_event(
 async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) -> Result<()> {
     match interaction.0 {
         Interaction::Ping(_) => println!("pong (interaction)"),
-        Interaction::ApplicationCommand(box ApplicationCommand {
-            data: CommandData {
-                name: _cmd_name,
-                options: cmd_options,
+        Interaction::ApplicationCommand(application_command) => {
+            let ApplicationCommand {
+                data: CommandData {
+                    name: _cmd_name,
+                    options: cmd_options,
+                    ..
+                },
+                id,
+                member: _member,
+                token,
                 ..
-            },
-            id,
-            member: _member,
-            token,
-            ..
-        }) => {
+            } = *application_command;
             let _title = cmd_options.iter().find_map(|option| {
                 if let CommandDataOption::String { name, value } = option {
                     if name == "title" {
