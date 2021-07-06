@@ -12,9 +12,9 @@ use crate::calendar::{parse_json_body, request};
 use super::Timestamp;
 
 macro_rules! impl_builder {
-    ( $( $field:ident : $type:ty ),* $(,)? ) => {
+    ( $( $field:ident : $ty:ty ),* $(,)? ) => {
         $(
-            pub fn $field<T: Into<$type>>(mut self, $field: T) -> Self {
+            pub fn $field<T: Into<$ty>>(mut self, $field: T) -> Self {
                 self.$field = $field.into();
                 self
             }
