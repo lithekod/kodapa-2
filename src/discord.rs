@@ -1,11 +1,11 @@
 use std::convert::{TryFrom, TryInto};
 
 use futures_util::stream::StreamExt;
-use tokio::sync::{broadcast, mpsc};
+use tokio::{join, sync::{broadcast, mpsc}};
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{cluster::{Cluster, ShardScheme}, Event};
 use twilight_http::Client as HttpClient;
-use twilight_model::application::callback::{CallbackData, InteractionResponse};
+use twilight_model::{application::callback::{CallbackData, InteractionResponse}, id::ChannelId};
 use twilight_model::application::interaction::application_command::{CommandData, CommandDataOption};
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
@@ -15,8 +15,36 @@ use crate::{agenda::{Agenda, AgendaPoint}, kodapa};
 pub async fn handle(
     token: &str,
     _agenda_sender: mpsc::UnboundedSender<AgendaPoint>,
-    _event_receiver: broadcast::Receiver<kodapa::Event>,
+    event_receiver: broadcast::Receiver<kodapa::Event>,
 ) {
+    let http = HttpClient::new(token);
+
+    let _e1 = join!(
+        handle_discord_events(token, &http),
+        handle_reminder_events(event_receiver, &http),
+    );
+}
+
+async fn handle_reminder_events(
+    mut receiver: broadcast::Receiver<kodapa::Event>,
+    http: &HttpClient,
+) {
+    while let Ok(event) = receiver.recv().await {
+        match event {
+            kodapa::Event::Reminder => {
+                let channel = ChannelId(697057150106599488);
+                http
+                    .create_message(channel)
+                    .content(get_agenda_string())
+                    .unwrap()
+                    .await
+                    .unwrap();
+            },
+        }
+    }
+}
+
+async fn handle_discord_events(token: &str, http: &HttpClient) {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
@@ -35,9 +63,6 @@ pub async fn handle(
     tokio::spawn(async move {
         cluster_spawn.up().await;
     });
-
-    // HTTP is separate from the gateway, so create a new client.
-    let http = HttpClient::new(token);
 
     // Since we only care about new messages, make the cache only
     // cache new messages.
@@ -73,6 +98,10 @@ async fn handle_event(
     }
 }
 
+/// The kinds of interactions we support. Should match the file
+/// `register_commands.py` which needs to be run if any changes to commands is
+/// to be made.
+//TODO: Use hyper instead of Python to register.
 enum InteractionCommand {
     Add {
         title: String,
@@ -86,16 +115,19 @@ impl TryFrom<CommandData> for InteractionCommand {
     fn try_from(data: CommandData) -> Result<Self, Self::Error> {
         match data.name.as_str() {
             "add" => {
-                let title = data.options.iter().find_map(|option| {
-                    if let CommandDataOption::String { name, value} = option {
-                        if name == "title" {
-                            return Some(value);
+                let title = data
+                    .options
+                    .iter()
+                    .find_map(|option| {
+                        if let CommandDataOption::String { name, value} = option {
+                            if name == "title" {
+                                return Some(value);
+                            }
                         }
-                    }
-                    None
-                })
-                .ok_or(())?
-                .to_string();
+                        None
+                    })
+                    .ok_or(())?
+                    .to_string();
                 Ok(InteractionCommand::Add {
                     title,
                 })
@@ -127,19 +159,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
                     "ok".to_string()
                 }
                 Ok(InteractionCommand::Agenda) => {
-                    let points = Agenda::read().points;
-                    if points.is_empty() {
-                        "Empty agenda".to_string()
-                    } else {
-                        format!(
-                            "```{}```",
-                            points
-                                .iter()
-                                .map(|point| format!("{}", point))
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                        )
-                    }
+                    get_agenda_string()
                 }
                 Err(_) => "Error parsing command".to_string(),
             };
@@ -159,5 +179,21 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
             ).await.unwrap();
         }
         i => println!("unhandled interaction: {:?}", i),
+    }
+}
+
+fn get_agenda_string() -> String {
+    let points = Agenda::read().points;
+    if points.is_empty() {
+        "Empty agenda".to_string()
+    } else {
+        format!(
+            "```{}```",
+            points
+                .iter()
+                .map(|point| format!("{}", point))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
     }
 }

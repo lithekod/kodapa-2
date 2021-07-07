@@ -5,9 +5,7 @@ use crate::{agenda::{Agenda, AgendaPoint}, calendar};
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    Reminder {
-        agenda: Agenda,
-    }
+    Reminder,
 }
 
 /// Entry point for the kodapa logic.
@@ -39,17 +37,10 @@ async fn handle_reminders(notifier: Arc<Notify>, event_sender: broadcast::Sender
         async {
             loop {
                 notifier.notified().await;
-                event_sender.send(get_reminder_event()).unwrap();
+                event_sender.send(Event::Reminder).unwrap();
             }
         }
     );
-}
-
-/// Read the agenda and get an Event that can be sent to Discord.
-fn get_reminder_event() -> Event {
-    Event::Reminder {
-        agenda: Agenda::read(),
-    }
 }
 
 fn _print_errors<T, U: std::fmt::Debug>(errs: &[Result<T, U>]) {
