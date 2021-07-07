@@ -1,4 +1,6 @@
 /target
-config
+
+agenda.json
 client_secret.json
-token.json
+config
+tokens.json
