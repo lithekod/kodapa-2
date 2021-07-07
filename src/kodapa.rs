@@ -1,11 +1,12 @@
-use std::sync::Arc;
-use tokio::{join, sync::{Notify, broadcast, mpsc}};
+use tokio::{join, sync::{broadcast, mpsc}};
 
 use crate::{agenda::{Agenda, AgendaPoint}, calendar};
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    Reminder,
+    Reminder {
+        event: calendar::model::events::Event,
+    },
 }
 
 /// Entry point for the kodapa logic.
@@ -13,10 +14,9 @@ pub async fn handle(
     agenda_receiver: mpsc::UnboundedReceiver<AgendaPoint>,
     event_sender: broadcast::Sender<Event>,
 ) {
-    let reminder_notifier = Arc::new(Notify::new());
     let (_e1, _e2) = join!(
         handle_agenda(agenda_receiver),
-        handle_reminders(reminder_notifier, event_sender.clone()),
+        handle_reminders(event_sender.clone()),
     );
     println!("kodapa::handle: done");
 }
@@ -31,13 +31,13 @@ async fn handle_agenda(mut receiver: mpsc::UnboundedReceiver<AgendaPoint>) {
 }
 
 /// Receives notifications when a reminder should be sent and sends it.
-async fn handle_reminders(notifier: Arc<Notify>, event_sender: broadcast::Sender<Event>) {
+async fn handle_reminders(event_sender: broadcast::Sender<Event>) {
+    let (calendar_tx, mut calendar_rx) = mpsc::unbounded_channel();
     let (_e1, _e2) = join!(
-        calendar::handle(Arc::clone(&notifier)),
+        calendar::handle(calendar_tx),
         async {
-            loop {
-                notifier.notified().await;
-                event_sender.send(Event::Reminder).unwrap();
+            while let Some(event) = calendar_rx.recv().await {
+                event_sender.send(Event::Reminder { event }).unwrap();
             }
         }
     );

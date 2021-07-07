@@ -8,6 +8,7 @@ mod calendar;
 mod discord;
 mod kodapa;
 
+#[allow(dead_code)]
 type Result<T> = ::std::result::Result<T, Box<dyn Error + Send + Sync>>;
 
 fn main() {

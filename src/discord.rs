@@ -10,7 +10,7 @@ use twilight_model::application::interaction::application_command::{CommandData,
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
 
-use crate::{agenda::{Agenda, AgendaPoint}, kodapa};
+use crate::{agenda::{Agenda, AgendaPoint}, calendar::{self, model::Timestamp}, kodapa};
 
 pub async fn handle(
     token: &str,
@@ -31,11 +31,11 @@ async fn handle_reminder_events(
 ) {
     while let Ok(event) = receiver.recv().await {
         match event {
-            kodapa::Event::Reminder => {
+            kodapa::Event::Reminder { event } => {
                 let channel = ChannelId(697057150106599488);
                 http
                     .create_message(channel)
-                    .content(get_agenda_string())
+                    .content(get_meeting_string(&event))
                     .unwrap()
                     .await
                     .unwrap();
@@ -180,6 +180,26 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
         }
         i => println!("unhandled interaction: {:?}", i),
     }
+}
+
+fn get_meeting_string(event: &calendar::model::events::Event) -> String {
+    format!(
+        "Meeting at {}!{}\n{}",
+        event
+            .start()
+            .try_into()
+            .ok()
+            .as_ref()
+            .and_then(|dt: &Timestamp| dt.date_time())
+            .map(|dt| dt.format("%H:%M").to_string())
+            .unwrap_or_else(String::new),
+        if let Some(location) = event.location() {
+            format!(" Location: {}.", location)
+        } else {
+            String::new()
+        },
+        get_agenda_string(),
+    )
 }
 
 fn get_agenda_string() -> String {

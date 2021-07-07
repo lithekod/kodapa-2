@@ -31,7 +31,7 @@ macro_rules! impl_get {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GCalTimestamp {
@@ -72,4 +72,23 @@ impl TryFrom<GCalTimestamp> for Timestamp {
 pub enum Timestamp {
     Date(chrono::NaiveDate),
     DateTime(chrono::DateTime<FixedOffset>),
+}
+
+impl Timestamp {
+    //TODO macro this
+
+    #[allow(dead_code)]
+    pub fn date(&self) -> Option<&chrono::NaiveDate> {
+        match self {
+            Timestamp::Date(date) => Some(date),
+            _ => None,
+        }
+    }
+
+    pub fn date_time(&self) -> Option<&chrono::DateTime<FixedOffset>> {
+        match self {
+            Timestamp::DateTime(date_time) => Some(date_time),
+            _ => None,
+        }
+    }
 }

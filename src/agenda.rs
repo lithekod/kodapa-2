@@ -23,6 +23,7 @@ impl fmt::Display for AgendaPoint {
 }
 
 impl AgendaPoint {
+    #[allow(dead_code)]
     pub fn to_add_message(&self) -> String {
         format!(
             "'{}' added by {}",

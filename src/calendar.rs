@@ -2,23 +2,23 @@ use chrono::{DateTime, Duration, Local};
 use hyper::{Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde::de::DeserializeOwned;
-use std::{convert::TryInto, sync::Arc};
-use tokio::sync::Notify;
+use std::convert::TryInto;
+use tokio::sync::mpsc;
 use url::Url;
 use yup_oauth2::AccessToken;
 
 use crate::calendar::model::Timestamp;
 
-use self::model::events::{EventsListRequest, EventsListResponse};
+use self::model::events::{Event, EventsListRequest, EventsListResponse};
 
-mod model;
+pub mod model;
 
 const BASE_URL: &'static str = "https://www.googleapis.com/calendar/v3/";
 const SCOPES: [&'static str; 1] = [
     "https://www.googleapis.com/auth/calendar",
 ];
 
-pub async fn handle(notifier: Arc<Notify>) {
+pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
     let token = token().await.unwrap();
     let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
     // let calendar_id = "ordf@lithekod.se".to_string();
@@ -64,7 +64,7 @@ pub async fn handle(notifier: Arc<Notify>) {
                 _ => panic!("malformed start of event {:?}", meeting),
             };
             last_fire = Some(start.date());
-            notifier.notify_one();
+            sender.send(meeting.clone()).unwrap();
             println!("hello");
         }
     }

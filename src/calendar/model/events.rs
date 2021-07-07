@@ -129,7 +129,7 @@ impl EventsListResponse {
     );
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
