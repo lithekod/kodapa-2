@@ -2,7 +2,7 @@
 
 use chrono::FixedOffset;
 use serde::{Deserialize, Serialize};
-use std::{convert::TryFrom, fmt};
+use std::convert::TryFrom;
 
 pub mod events;
 

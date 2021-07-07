@@ -1,9 +1,8 @@
-use std::convert::TryFrom;
-
 use chrono::{Duration, Local};
 use hyper::{Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde::de::DeserializeOwned;
+use std::convert::TryFrom;
 use url::Url;
 use yup_oauth2::AccessToken;
 
@@ -23,13 +22,13 @@ pub async fn handle() {
     let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
 
     let now = Local::now();
-    let later = now.checked_add_signed(Duration::days(2)).unwrap();
+    let tomorrow = now.checked_add_signed(Duration::days(1)).unwrap();
 
     let request = EventsListRequest::new(calendar_id)
-        .max_results(6)
+        .max_results(50) // Should be enough to not warrant paging for now
         .single_events(true)
         .time_min(now)
-        .time_max(later);
+        .time_max(tomorrow);
     println!("{:?}", request);
     for event in request.request(BASE_URL, &token.unwrap()).await.unwrap().items() {
         println!(
