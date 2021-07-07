@@ -8,7 +8,7 @@ use twilight_model::application::interaction::application_command::{CommandData,
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
 
-use crate::{agenda::AgendaPoint, kodapa};
+use crate::{agenda::{Agenda, AgendaPoint}, kodapa};
 
 pub async fn handle(
     token: &str,
@@ -86,7 +86,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
                 token,
                 ..
             } = *application_command;
-            let _title = cmd_options.iter().find_map(|option| {
+            let title = cmd_options.iter().find_map(|option| {
                 if let CommandDataOption::String { name, value } = option {
                     if name == "title" {
                         return Some(value);
@@ -94,6 +94,12 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
                 }
                 None
             });
+            if let Some(title) = title {
+                Agenda::push_write(AgendaPoint {
+                    title: title.to_string(),
+                    adder: "?".to_string(),
+                });
+            }
             http.interaction_callback(
                 id,
                 token,

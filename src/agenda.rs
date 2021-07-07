@@ -33,6 +33,12 @@ impl Agenda {
         )
         .expect("Can't write agenda.json");
     }
+
+    pub fn push_write(point: AgendaPoint) {
+        let mut agenda = read_agenda();
+        agenda.points.push(point);
+        agenda.write();
+    }
 }
 
 impl fmt::Display for Agenda {
