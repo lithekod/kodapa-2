@@ -1,9 +1,13 @@
+use std::convert::TryFrom;
+
 use chrono::{Duration, Local};
 use hyper::{Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde::de::DeserializeOwned;
 use url::Url;
 use yup_oauth2::AccessToken;
+
+use crate::calendar::model::Timestamp;
 
 use self::model::events::EventsListRequest;
 
@@ -27,7 +31,14 @@ pub async fn handle() {
         .time_min(now)
         .time_max(later);
     println!("{:?}", request);
-    println!("{:#?}", request.request(BASE_URL, &token.unwrap()).await.unwrap().items());
+    for event in request.request(BASE_URL, &token.unwrap()).await.unwrap().items() {
+        println!(
+            "{}: {:?}-{:?}",
+            event.summary(),
+            Timestamp::try_from(event.start()),
+            Timestamp::try_from(event.end()),
+        );
+    }
 }
 
 async fn token() -> Option<AccessToken> {

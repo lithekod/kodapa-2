@@ -12,7 +12,7 @@ use yup_oauth2::AccessToken;
 
 use crate::calendar::{parse_json_body, request};
 
-use super::Timestamp;
+use super::GCalTimestamp;
 
 macro_rules! impl_builder {
     ( $( $field:ident : $ty:ty ),* $(,)? ) => {
@@ -151,17 +151,19 @@ impl EventsListResponse {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
-    start: Timestamp,
-    end: Timestamp,
+    start: GCalTimestamp,
+    end: GCalTimestamp,
     location: Option<String>,
     summary: String,
+    end_time_unspecified: Option<bool>,
 }
 
 impl Event {
     impl_get!(
-        start: &Timestamp,
-        end: &Timestamp,
+        start: &GCalTimestamp,
+        end: &GCalTimestamp,
         location: &Option<String>,
         summary: &str,
+        end_time_unspecified: &Option<bool>,
     );
 }
