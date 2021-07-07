@@ -17,6 +17,7 @@ use super::GCalTimestamp;
 macro_rules! impl_builder {
     ( $( $field:ident : $ty:ty ),* $(,)? ) => {
         $(
+            #[allow(dead_code)]
             pub fn $field<T: Into<$ty>>(mut self, $field: T) -> Self {
                 self.$field = $field.into();
                 self
@@ -28,6 +29,7 @@ macro_rules! impl_builder {
 macro_rules! impl_get {
     ( $( $field:ident : $ty:ty),* $(,)? ) => {
         $(
+            #[allow(dead_code)]
             pub fn $field(&self) -> $ty {
                 &self.$field
             }
