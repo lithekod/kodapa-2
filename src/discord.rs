@@ -8,15 +8,13 @@ use twilight_model::application::interaction::application_command::{CommandData,
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
 
-use crate::kodapa;
-
-use super::Result;
+use crate::{agenda::AgendaPoint, kodapa};
 
 pub async fn handle(
     token: &str,
-    _agenda_sender: mpsc::UnboundedSender<kodapa::MeetingPoint>,
+    _agenda_sender: mpsc::UnboundedSender<AgendaPoint>,
     _event_receiver: broadcast::Receiver<kodapa::Event>,
-) -> Result<()> {
+) {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
@@ -25,7 +23,8 @@ pub async fn handle(
     let (cluster, mut events) = Cluster::builder(token, Intents::GUILD_MESSAGES)
         .shard_scheme(scheme)
         .build()
-        .await?;
+        .await
+        .unwrap();
 
     // Start up the cluster.
     let cluster_spawn = cluster.clone();
@@ -51,32 +50,28 @@ pub async fn handle(
 
         tokio::spawn(handle_event(shard_id, event, http.clone()));
     }
-
-    Ok(())
 }
 
 async fn handle_event(
     shard_id: u64,
     event: Event,
     http: HttpClient,
-) -> Result<()> {
+) {
     match event {
         Event::ShardConnected(_) => {
             println!("Connected on shard {}", shard_id);
         }
         Event::InteractionCreate(interaction) => {
-            handle_interaction(*interaction, &http).await?;
+            handle_interaction(*interaction, &http).await;
         }
         // Other events here...
         event => {
             println!("{:?}", event);
         }
     }
-
-    Ok(())
 }
 
-async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) -> Result<()> {
+async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
     match interaction.0 {
         Interaction::Ping(_) => println!("pong (interaction)"),
         Interaction::ApplicationCommand(application_command) => {
@@ -111,10 +106,8 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) -
                         embeds: Default::default(),
                     },
                 )
-            ).await?;
+            ).await.unwrap();
         }
         i => println!("unhandled interaction: {:?}", i),
     }
-
-    Ok(())
 }
