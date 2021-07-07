@@ -111,7 +111,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
             let ApplicationCommand {
                 data,
                 id,
-                member: _member,
+                member,
                 token,
                 ..
             } = *application_command;
@@ -119,7 +119,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
                 Ok(InteractionCommand::Add { title }) => {
                     Agenda::push_write(AgendaPoint {
                         title: title.to_string(),
-                        adder: "?".to_string(),
+                        adder: member.and_then(|m| m.nick).unwrap_or_else(|| "?".to_string()),
                     });
                 }
                 Err(_) => {}
