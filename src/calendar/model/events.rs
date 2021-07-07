@@ -2,11 +2,11 @@
 //!
 //! See `https://developers.google.com/calendar/api/v3/reference/events`.
 
-use std::fmt;
 
 use chrono::{DateTime, TimeZone};
 use hyper::Body;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use url::Url;
 use yup_oauth2::AccessToken;
 
@@ -46,7 +46,6 @@ pub struct EventsListRequest {
     time_min: Option<String>,
 }
 
-
 impl EventsListRequest {
     pub fn new(calendar_id: String) -> Self {
         Self {
@@ -73,7 +72,7 @@ impl EventsListRequest {
         Tz: TimeZone,
         Tz::Offset: fmt::Display,
     {
-        self.time_max = time.into().map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%S%:z").to_string());
+        self.time_max = time.into().map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%SZ").to_string());
         self
     }
 

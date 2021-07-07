@@ -19,11 +19,14 @@ pub async fn handle() {
     let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
 
     let now = Local::now();
+    let later = now.checked_add_signed(Duration::days(2)).unwrap();
 
     let request = EventsListRequest::new(calendar_id)
         .max_results(6)
         .single_events(true)
-        .time_min(now);
+        .time_min(now)
+        .time_max(later);
+    println!("{:?}", request);
     println!("{:#?}", request.request(BASE_URL, &token.unwrap()).await.unwrap().items());
 }
 
