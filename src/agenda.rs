@@ -26,6 +26,12 @@ pub struct Agenda {
 }
 
 impl Agenda {
+    pub fn read() -> Self {
+        match fs::read_to_string("agenda.json") {
+            Ok(s) => serde_json::from_str(&s).expect("Error parsing agenda.json"),
+            Err(_) => Self { points: Vec::new() },
+        }
+    }
     pub fn write(&self) {
         fs::write(
             std::path::Path::new("agenda.json"),
@@ -35,7 +41,7 @@ impl Agenda {
     }
 
     pub fn push_write(point: AgendaPoint) {
-        let mut agenda = read_agenda();
+        let mut agenda = Self::read();
         agenda.points.push(point);
         agenda.write();
     }
@@ -57,12 +63,5 @@ impl fmt::Display for Agenda {
                 _ => &s,
             }
         )
-    }
-}
-
-pub fn read_agenda() -> Agenda {
-    match fs::read_to_string("agenda.json") {
-        Ok(s) => serde_json::from_str(&s).expect("Error parsing agenda.json"),
-        Err(_) => Agenda { points: Vec::new() },
     }
 }

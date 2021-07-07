@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::{join, sync::{Notify, broadcast, mpsc}};
 
-use crate::{agenda::{Agenda, AgendaPoint, read_agenda}, calendar};
+use crate::{agenda::{Agenda, AgendaPoint}, calendar};
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -26,7 +26,7 @@ pub async fn handle(
 /// Receives meeting points from Discord and adds them to the agenda.
 async fn handle_agenda(mut receiver: mpsc::UnboundedReceiver<AgendaPoint>) {
     while let Some(point) = receiver.recv().await {
-        let mut agenda = read_agenda();
+        let mut agenda = Agenda::read();
         agenda.points.push(point);
         agenda.write();
     }
@@ -48,7 +48,7 @@ async fn handle_reminders(notifier: Arc<Notify>, event_sender: broadcast::Sender
 /// Read the agenda and get an Event that can be sent to Discord.
 fn get_reminder_event() -> Event {
     Event::Reminder {
-        agenda: read_agenda(),
+        agenda: Agenda::read(),
     }
 }
 
