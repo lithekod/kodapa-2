@@ -76,7 +76,8 @@ async fn handle_event(
 enum InteractionCommand {
     Add {
         title: String,
-    }
+    },
+    Agenda,
 }
 
 impl TryFrom<CommandData> for InteractionCommand {
@@ -99,6 +100,7 @@ impl TryFrom<CommandData> for InteractionCommand {
                     title,
                 })
             }
+            "agenda" => Ok(InteractionCommand::Agenda),
             _ => Err(()),
         }
     }
@@ -115,15 +117,33 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
                 token,
                 ..
             } = *application_command;
-            match data.try_into() {
+            let response = match data.try_into() {
                 Ok(InteractionCommand::Add { title }) => {
                     Agenda::push_write(AgendaPoint {
                         title: title.to_string(),
                         adder: member.and_then(|m| m.nick).unwrap_or_else(|| "?".to_string()),
+                        timestamp: chrono::Local::now(),
                     });
+                    "ok".to_string()
                 }
-                Err(_) => {}
-            }
+                Ok(InteractionCommand::Agenda) => {
+                    let points = Agenda::read().points;
+                    if points.is_empty() {
+                        "Empty agenda".to_string()
+                    } else {
+                        format!(
+                            "```{}```",
+                            points
+                                .iter()
+                                .map(|point| format!("{}", point))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        )
+                    }
+                }
+                Err(_) => "Error parsing command".to_string(),
+            };
+            println!("response: {:?}", response);
             http.interaction_callback(
                 id,
                 token,
@@ -132,7 +152,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
                         allowed_mentions: None,
                         flags: None,
                         tts: None,
-                        content: Some(format!("ok")),
+                        content: Some(response),
                         embeds: Default::default(),
                     },
                 )

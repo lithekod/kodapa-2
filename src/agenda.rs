@@ -1,21 +1,34 @@
+use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use std::{fmt, fs};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
 pub struct AgendaPoint {
     pub title: String,
     pub adder: String,
+    pub timestamp: DateTime<Local>,
 }
 
 impl fmt::Display for AgendaPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} ({})", self.title, self.adder)
+        write!(
+            f,
+            "{}: {} ({})",
+            self.adder,
+            self.title,
+            self.timestamp.format("%B %d -- w%V-%u")
+        )
     }
 }
 
 impl AgendaPoint {
     pub fn to_add_message(&self) -> String {
-        format!("'{}' added by {}", self.title, self.adder)
+        format!(
+            "'{}' added by {}",
+            self.title,
+            self.adder,
+        )
     }
 }
 
