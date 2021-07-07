@@ -34,30 +34,23 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
     // TODO: A better solution would be to instead poll for calendar updates
     // using sync-tokens while concurrently waiting for the next meeting.
     loop {
-        println!("sleeping");
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-        println!("woken");
 
         let now = Local::now();
-        println!("now: {:?}", now);
-        println!("last_fire: {:?}", last_fire);
         if last_fire.map(|date| now.date() == date).unwrap_or(false) {
             continue;
         }
         last_fire.take();
 
         let end = now.checked_add_signed(Duration::minutes(60)).unwrap();
-        println!("end: {:?}", end);
 
         // Try to find a styrelsemöte within 60 minutes.
         let events = events(&token, calendar_id.clone(), now, end).await;
-        println!("{} events", events.items().len());
         if let Some(meeting) = events
             .items()
             .iter()
             .find(|event| event.summary() == "Styrelsemöte" && event.start().date_time().is_some())
         {
-            println!("found {:?}", meeting);
             // Found a meeting. Notify and mark today as fired.
             let start = match meeting.start().try_into() {
                 Ok(Timestamp::DateTime(dt)) => dt,
@@ -65,7 +58,6 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
             };
             last_fire = Some(start.date());
             sender.send(meeting.clone()).unwrap();
-            println!("hello");
         }
     }
 
