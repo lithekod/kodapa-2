@@ -10,37 +10,15 @@ use std::fmt;
 use url::Url;
 use yup_oauth2::AccessToken;
 
-use crate::calendar::{parse_json_body, request};
+use crate::{calendar::{parse_json_body, request}, impl_builder, impl_get};
 
 use super::GCalTimestamp;
-
-macro_rules! impl_builder {
-    ( $( $field:ident : $ty:ty ),* $(,)? ) => {
-        $(
-            #[allow(dead_code)]
-            pub fn $field<T: Into<$ty>>(mut self, $field: T) -> Self {
-                self.$field = $field.into();
-                self
-            }
-        )*
-    }
-}
-
-macro_rules! impl_get {
-    ( $( $field:ident : $ty:ty),* $(,)? ) => {
-        $(
-            #[allow(dead_code)]
-            pub fn $field(&self) -> $ty {
-                &self.$field
-            }
-        )*
-    };
-}
 
 #[derive(Debug)]
 pub struct EventsListRequest {
     calendar_id: String,
     max_results: Option<usize>,
+    order_by: Option<String>,
     page_token: Option<String>,
     show_deleted: Option<bool>,
     single_events: Option<bool>,
@@ -53,6 +31,7 @@ impl EventsListRequest {
         Self {
             calendar_id,
             max_results: None,
+            order_by: None,
             page_token: None,
             show_deleted: None,
             single_events: None,
@@ -63,6 +42,7 @@ impl EventsListRequest {
 
     impl_builder!(
         max_results: Option<usize>,
+        order_by: Option<String>,
         page_token: Option<String>,
         show_deleted: Option<bool>,
         single_events: Option<bool>,

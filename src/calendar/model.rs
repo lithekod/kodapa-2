@@ -6,12 +6,44 @@ use std::convert::TryFrom;
 
 pub mod events;
 
+#[macro_export]
+macro_rules! impl_builder {
+    ( $( $field:ident : $ty:ty ),* $(,)? ) => {
+        $(
+            #[allow(dead_code)]
+            pub fn $field<T: Into<$ty>>(mut self, $field: T) -> Self {
+                self.$field = $field.into();
+                self
+            }
+        )*
+    }
+}
+
+#[macro_export]
+macro_rules! impl_get {
+    ( $( $field:ident : $ty:ty),* $(,)? ) => {
+        $(
+            #[allow(dead_code)]
+            pub fn $field(&self) -> $ty {
+                &self.$field
+            }
+        )*
+    };
+}
+
 #[derive(Debug)]
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GCalTimestamp {
     date: Option<String>,
     date_time: Option<String>,
+}
+
+impl GCalTimestamp {
+    impl_get!(
+        date: &Option<String>,
+        date_time: &Option<String>,
+    );
 }
 
 impl TryFrom<&GCalTimestamp> for Timestamp {

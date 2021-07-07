@@ -1,14 +1,14 @@
-use chrono::{Duration, Local};
+use chrono::{DateTime, Duration, Local, Timelike};
 use hyper::{Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use serde::de::DeserializeOwned;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use url::Url;
 use yup_oauth2::AccessToken;
 
 use crate::calendar::model::Timestamp;
 
-use self::model::events::EventsListRequest;
+use self::model::events::{Event, EventsListRequest, EventsListResponse};
 
 mod model;
 
@@ -18,26 +18,59 @@ const SCOPES: [&'static str; 1] = [
 ];
 
 pub async fn handle() {
-    let token = token().await;
+    let token = token().await.unwrap();
     let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
 
-    let now = Local::now();
-    let tomorrow = now.checked_add_signed(Duration::days(1)).unwrap();
+    let mut last_fire = None;
 
-    let request = EventsListRequest::new(calendar_id)
-        .max_results(50) // Should be enough to not warrant paging for now
-        .single_events(true)
-        .time_min(now)
-        .time_max(tomorrow);
-    println!("{:?}", request);
-    for event in request.request(BASE_URL, &token.unwrap()).await.unwrap().items() {
-        println!(
-            "{}: {:?}-{:?}",
-            event.summary(),
-            Timestamp::try_from(event.start()),
-            Timestamp::try_from(event.end()),
-        );
+    // Send reminder if this is the minute one hour before the event. If the
+    // event is at 13.15, we want to send a reminder at 12.15.xx.
+    loop {
+        println!("sleeping");
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        println!("morning");
+
+        let now = Local::now();
+        println!("now: {:?}", now);
+        println!("last_fire: {:?}", last_fire);
+        if last_fire.map(|date| now.date() == date).unwrap_or(false) {
+            continue;
+        }
+        last_fire.take();
+
+        let end = now.checked_add_signed(Duration::minutes(60)).unwrap();
+        println!("end: {:?}", end);
+
+        // Try to find a styrelsemöte within 60 minutes.
+        let events = events(&token, calendar_id.clone(), now, end).await;
+        println!("{} events", events.items().len());
+        if let Some(meeting) = events
+            .items()
+            .iter()
+            .find(|event| event.summary() == "Styrelsemöte" && event.start().date_time().is_some())
+        {
+            println!("found {:?}", meeting);
+            // Found a meeting. Notify and mark today as fired.
+            let start = match meeting.start().try_into() {
+                Ok(Timestamp::DateTime(dt)) => dt,
+                _ => panic!("malformed start of event {:?}", meeting),
+            };
+            last_fire = Some(start.date());
+            println!("hello");
+        }
     }
+
+}
+
+async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>, end: DateTime<Local>) -> EventsListResponse {
+    let request = EventsListRequest::new(calendar_id)
+        .max_results(50) // Should be enough to not warrant paging
+        .order_by("startTime".to_string())
+        .single_events(true)
+        .time_min(start)
+        .time_max(end);
+
+    request.request(BASE_URL, token).await.unwrap()
 }
 
 async fn token() -> Option<AccessToken> {
