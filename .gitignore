@@ -1,2 +1,4 @@
 /target
 config
+client_secret.json
+token.json
