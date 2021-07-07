@@ -1,3 +1,5 @@
+use std::convert::{TryFrom, TryInto};
+
 use futures_util::stream::StreamExt;
 use tokio::sync::{broadcast, mpsc};
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
@@ -71,34 +73,56 @@ async fn handle_event(
     }
 }
 
+enum InteractionCommand {
+    Add {
+        title: String,
+    }
+}
+
+impl TryFrom<CommandData> for InteractionCommand {
+    type Error = ();
+
+    fn try_from(data: CommandData) -> Result<Self, Self::Error> {
+        match data.name.as_str() {
+            "add" => {
+                let title = data.options.iter().find_map(|option| {
+                    if let CommandDataOption::String { name, value} = option {
+                        if name == "title" {
+                            return Some(value);
+                        }
+                    }
+                    None
+                })
+                .ok_or(())?
+                .to_string();
+                Ok(InteractionCommand::Add {
+                    title,
+                })
+            }
+            _ => Err(()),
+        }
+    }
+}
+
 async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
     match interaction.0 {
         Interaction::Ping(_) => println!("pong (interaction)"),
         Interaction::ApplicationCommand(application_command) => {
             let ApplicationCommand {
-                data: CommandData {
-                    name: _cmd_name,
-                    options: cmd_options,
-                    ..
-                },
+                data,
                 id,
                 member: _member,
                 token,
                 ..
             } = *application_command;
-            let title = cmd_options.iter().find_map(|option| {
-                if let CommandDataOption::String { name, value } = option {
-                    if name == "title" {
-                        return Some(value);
-                    }
+            match data.try_into() {
+                Ok(InteractionCommand::Add { title }) => {
+                    Agenda::push_write(AgendaPoint {
+                        title: title.to_string(),
+                        adder: "?".to_string(),
+                    });
                 }
-                None
-            });
-            if let Some(title) = title {
-                Agenda::push_write(AgendaPoint {
-                    title: title.to_string(),
-                    adder: "?".to_string(),
-                });
+                Err(_) => {}
             }
             http.interaction_callback(
                 id,
