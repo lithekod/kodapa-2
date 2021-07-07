@@ -20,15 +20,22 @@ const SCOPES: [&'static str; 1] = [
 pub async fn handle() {
     let token = token().await.unwrap();
     let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
+    // let calendar_id = "ordf@lithekod.se".to_string();
 
     let mut last_fire = None;
 
-    // Send reminder if this is the minute one hour before the event. If the
-    // event is at 13.15, we want to send a reminder at 12.15.xx.
+    // The logic for when to send a reminder is a bit crude but it's fairly
+    // sturdy. Every 5 seconds, we poll all events that occur in the next 60
+    // minutes. If an event (with a start time, i.e. not a day event) is named
+    // "Styrelsemöte", and we haven't yet sent a reminder today, a reminder is
+    // sent.
+    //
+    // TODO: A better solution would be to instead poll for calendar updates
+    // using sync-tokens while concurrently waiting for the next meeting.
     loop {
         println!("sleeping");
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-        println!("morning");
+        println!("woken");
 
         let now = Local::now();
         println!("now: {:?}", now);
