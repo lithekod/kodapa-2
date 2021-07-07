@@ -16,11 +16,11 @@ const SCOPES: [&'static str; 1] = [
 pub async fn handle() {
     let token = token().await;
 
-    let calendar_id =  "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
+    let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
     let request = EventsListRequest::new(calendar_id)
         .max_results(6)
         .single_events(true)
-        .time_min( "2021-07-06T00:00:00Z".to_string());
+        .time_min("2021-07-06T00:00:00Z".to_string());
     println!("{:#?}", request.request(BASE_URL, &token.unwrap()).await.unwrap().items());
 }
 
