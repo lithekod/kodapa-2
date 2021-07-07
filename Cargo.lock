@@ -480,6 +480,7 @@ dependencies = [
 name = "kodapa-2"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "futures-util",
  "hyper",
  "hyper-tls",

@@ -2,6 +2,9 @@
 //!
 //! See `https://developers.google.com/calendar/api/v3/reference/events`.
 
+use std::fmt;
+
+use chrono::{DateTime, TimeZone};
 use hyper::Body;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -62,9 +65,27 @@ impl EventsListRequest {
         page_token: Option<String>,
         show_deleted: Option<bool>,
         single_events: Option<bool>,
-        time_max: Option<String>,
-        time_min: Option<String>,
     );
+
+    pub fn time_max<T, Tz>(mut self, time: T) -> Self
+    where
+        T: Into<Option<DateTime<Tz>>>,
+        Tz: TimeZone,
+        Tz::Offset: fmt::Display,
+    {
+        self.time_max = time.into().map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%S%:z").to_string());
+        self
+    }
+
+    pub fn time_min<T, Tz>(mut self, time: T) -> Self
+    where
+        T: Into<Option<DateTime<Tz>>>,
+        Tz: TimeZone,
+        Tz::Offset: fmt::Display,
+    {
+        self.time_min = time.into().map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%SZ").to_string());
+        self
+    }
 
     pub async fn request(self, base_url: &str, token: &AccessToken) -> Option<EventsListResponse> {
         let url = self.to_url(base_url).ok()?;
