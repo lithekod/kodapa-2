@@ -29,10 +29,15 @@ async fn handle_reminder_events(
     mut receiver: broadcast::Receiver<kodapa::Event>,
     http: &HttpClient,
 ) {
+    let channel = ChannelId(
+        std::env::var("DISCORD_SECRET_CHANNEL")
+            .expect("missing DISCORD_SECRET_CHANNEL")
+            .parse()
+            .unwrap()
+    );
     while let Ok(event) = receiver.recv().await {
         match event {
             kodapa::Event::Reminder { event } => {
-                let channel = ChannelId(697057150106599488);
                 http
                     .create_message(channel)
                     .content(&get_meeting_string(&event))

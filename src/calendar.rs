@@ -20,8 +20,7 @@ const SCOPES: [&'static str; 1] = [
 
 pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
     let token = token().await.unwrap();
-    let calendar_id = "lithekod.se_eos416am56q1g0nuqrtdj8ui1s@group.calendar.google.com".to_string();
-    // let calendar_id = "ordf@lithekod.se".to_string();
+    let calendar_id = std::env::var("CALENDAR_ID").expect("missing CALENDAR_ID");
 
     let mut last_fire = None;
 
