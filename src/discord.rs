@@ -18,28 +18,29 @@ pub async fn handle(
     event_receiver: broadcast::Receiver<kodapa::Event>,
 ) {
     let http = HttpClient::new(token.clone());
+    let secret_channel = ChannelId(
+        std::env::var("DISCORD_SECRET_CHANNEL")
+            .expect("missing DISCORD_SECRET_CHANNEL")
+            .parse()
+            .unwrap()
+    );
 
     let _e1 = join!(
-        handle_discord_events(&token, &http),
-        handle_reminder_events(event_receiver, &http),
+        handle_discord_events(&token, &http, secret_channel),
+        handle_reminder_events(event_receiver, &http, secret_channel),
     );
 }
 
 async fn handle_reminder_events(
     mut receiver: broadcast::Receiver<kodapa::Event>,
     http: &HttpClient,
+    secret_channel: ChannelId,
 ) {
-    let channel = ChannelId(
-        std::env::var("DISCORD_SECRET_CHANNEL")
-            .expect("missing DISCORD_SECRET_CHANNEL")
-            .parse()
-            .unwrap()
-    );
     while let Ok(event) = receiver.recv().await {
         match event {
             kodapa::Event::Reminder { event } => {
                 http
-                    .create_message(channel)
+                    .create_message(secret_channel)
                     .content(&get_meeting_string(&event))
                     .unwrap()
                     .exec()
@@ -50,7 +51,7 @@ async fn handle_reminder_events(
     }
 }
 
-async fn handle_discord_events(token: &str, http: &HttpClient) {
+async fn handle_discord_events(token: &str, http: &HttpClient, secret_channel: ChannelId) {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
@@ -81,7 +82,7 @@ async fn handle_discord_events(token: &str, http: &HttpClient) {
         // Update the cache with the event.
         cache.update(&event);
 
-        tokio::spawn(handle_event(shard_id, event, http.clone()));
+        tokio::spawn(handle_event(shard_id, event, http.clone(), secret_channel));
     }
 }
 
@@ -89,13 +90,14 @@ async fn handle_event(
     shard_id: u64,
     event: Event,
     http: HttpClient,
+    secret_channel: ChannelId
 ) {
     match event {
         Event::ShardConnected(_) => {
             println!("Connected on shard {}", shard_id);
         }
         Event::InteractionCreate(interaction) => {
-            handle_interaction(*interaction, &http).await;
+            handle_interaction(*interaction, &http, secret_channel).await;
         }
         // Other events here...
         event => {
@@ -144,30 +146,35 @@ impl TryFrom<CommandData> for InteractionCommand {
     }
 }
 
-async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
+async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, secret_channel: ChannelId) {
     match interaction.0 {
         Interaction::Ping(_) => println!("pong (interaction)"),
         Interaction::ApplicationCommand(application_command) => {
             let ApplicationCommand {
+                channel_id,
                 data,
                 id,
                 member,
                 token,
                 ..
             } = *application_command;
-            let response = match data.try_into() {
-                Ok(InteractionCommand::Add { title }) => {
-                    Agenda::push_write(AgendaPoint {
-                        title: title.to_string(),
-                        adder: member.and_then(|m| m.nick).unwrap_or_else(|| "?".to_string()),
-                        timestamp: chrono::Local::now(),
-                    });
-                    "ok".to_string()
+            let response = if channel_id != secret_channel {
+                "Commands are not valid in this channel".to_string()
+            } else {
+                match data.try_into() {
+                    Ok(InteractionCommand::Add { title }) => {
+                        Agenda::push_write(AgendaPoint {
+                            title: title.to_string(),
+                            adder: member.and_then(|m| m.nick).unwrap_or_else(|| "?".to_string()),
+                            timestamp: chrono::Local::now(),
+                        });
+                        "ok".to_string()
+                    }
+                    Ok(InteractionCommand::Agenda) => {
+                        get_agenda_string()
+                    }
+                    Err(_) => "Error parsing command".to_string(),
                 }
-                Ok(InteractionCommand::Agenda) => {
-                    get_agenda_string()
-                }
-                Err(_) => "Error parsing command".to_string(),
             };
             println!("response: {:?}", response);
             http.interaction_callback(
