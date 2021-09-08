@@ -20,7 +20,7 @@ fn main() {
     let rt = tokio::runtime::Runtime::new().expect("unable to create async runtime");
     let _ = rt.block_on(async {
         join!(
-            discord::handle(&discord_token, agenda_sender, event_receiver),
+            discord::handle(discord_token, agenda_sender, event_receiver),
             kodapa::handle(agenda_receiver, event_sender),
         )
     });

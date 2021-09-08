@@ -13,14 +13,14 @@ use twilight_model::gateway::{Intents, payload::InteractionCreate};
 use crate::{agenda::{Agenda, AgendaPoint}, calendar::{self, model::Timestamp}, kodapa};
 
 pub async fn handle(
-    token: &str,
+    token: String,
     _agenda_sender: mpsc::UnboundedSender<AgendaPoint>,
     event_receiver: broadcast::Receiver<kodapa::Event>,
 ) {
-    let http = HttpClient::new(token);
+    let http = HttpClient::new(token.clone());
 
     let _e1 = join!(
-        handle_discord_events(token, &http),
+        handle_discord_events(&token, &http),
         handle_reminder_events(event_receiver, &http),
     );
 }
@@ -35,8 +35,9 @@ async fn handle_reminder_events(
                 let channel = ChannelId(697057150106599488);
                 http
                     .create_message(channel)
-                    .content(get_meeting_string(&event))
+                    .content(&get_meeting_string(&event))
                     .unwrap()
+                    .exec()
                     .await
                     .unwrap();
             },
@@ -166,17 +167,18 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient) {
             println!("response: {:?}", response);
             http.interaction_callback(
                 id,
-                token,
-                InteractionResponse::ChannelMessageWithSource(
+                &token,
+                &InteractionResponse::ChannelMessageWithSource(
                     CallbackData {
                         allowed_mentions: None,
-                        flags: None,
-                        tts: None,
+                        components: None,
                         content: Some(response),
                         embeds: Default::default(),
+                        flags: None,
+                        tts: None,
                     },
                 )
-            ).await.unwrap();
+            ).exec().await.unwrap();
         }
         i => println!("unhandled interaction: {:?}", i),
     }
