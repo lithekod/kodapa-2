@@ -31,6 +31,11 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
     // "Styrelsemöte", and we haven't yet sent a reminder today, a reminder is
     // sent.
     //
+    // This won't work ( at least not correctly) if a meeting is around midnight.
+    // (More specifically, if a meeting is planned for between 00:00 and 00:59
+    // we're going to send two reminders. The first one hour before the meeting
+    // and then another one at 00:00.)
+    //
     // TODO: A better solution would be to instead poll for calendar updates
     // using sync-tokens while concurrently waiting for the next meeting.
     loop {
