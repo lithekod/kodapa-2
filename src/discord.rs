@@ -4,8 +4,8 @@ use futures_util::stream::StreamExt;
 use tokio::{join, sync::{broadcast, mpsc}};
 use twilight_cache_inmemory::{InMemoryCache, ResourceType};
 use twilight_gateway::{cluster::{Cluster, ShardScheme}, Event};
-use twilight_http::Client as HttpClient;
-use twilight_model::{application::callback::{CallbackData, InteractionResponse}, id::ChannelId};
+use twilight_http::{Client as HttpClient, request::AuditLogReason};
+use twilight_model::{application::callback::{CallbackData, InteractionResponse}, id::{ChannelId, RoleId}};
 use twilight_model::application::interaction::application_command::{CommandData, CommandDataOption};
 use twilight_model::application::interaction::{ApplicationCommand, Interaction};
 use twilight_model::gateway::{Intents, payload::InteractionCreate};
@@ -24,9 +24,15 @@ pub async fn handle(
             .parse()
             .unwrap()
     );
+    let meetup_role = RoleId(
+        std::env::var("DISCORD_MEETUP_ROLE_ID")
+            .expect("missing DISCORD_MEETUP_ROLE_ID")
+            .parse()
+            .unwrap()
+    );
 
     let _e1 = join!(
-        handle_discord_events(&token, &http, secret_channel),
+        handle_discord_events(&token, &http, secret_channel, meetup_role),
         handle_reminder_events(event_receiver, &http, secret_channel),
     );
 }
@@ -51,7 +57,7 @@ async fn handle_reminder_events(
     }
 }
 
-async fn handle_discord_events(token: &str, http: &HttpClient, secret_channel: ChannelId) {
+async fn handle_discord_events(token: &str, http: &HttpClient, secret_channel: ChannelId, meetup_role: RoleId) {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
     let scheme = ShardScheme::Auto;
@@ -82,7 +88,7 @@ async fn handle_discord_events(token: &str, http: &HttpClient, secret_channel: C
         // Update the cache with the event.
         cache.update(&event);
 
-        tokio::spawn(handle_event(shard_id, event, http.clone(), secret_channel));
+        tokio::spawn(handle_event(shard_id, event, http.clone(), secret_channel, meetup_role));
     }
 }
 
@@ -90,14 +96,15 @@ async fn handle_event(
     shard_id: u64,
     event: Event,
     http: HttpClient,
-    secret_channel: ChannelId
+    secret_channel: ChannelId,
+    meetup_role: RoleId,
 ) {
     match event {
         Event::ShardConnected(_) => {
             println!("Connected on shard {}", shard_id);
         }
         Event::InteractionCreate(interaction) => {
-            handle_interaction(*interaction, &http, secret_channel).await;
+            handle_interaction(*interaction, &http, secret_channel, meetup_role).await;
         }
         // Other events here...
         event => {
@@ -115,6 +122,8 @@ enum InteractionCommand {
         title: String,
     },
     Agenda,
+    Clear,
+    Meetup(bool), // enable or disable
 }
 
 impl TryFrom<CommandData> for InteractionCommand {
@@ -136,17 +145,28 @@ impl TryFrom<CommandData> for InteractionCommand {
                     })
                     .ok_or(())?
                     .to_string();
-                Ok(InteractionCommand::Add {
-                    title,
-                })
+                return Ok(Self::Add { title });
             }
-            "agenda" => Ok(InteractionCommand::Agenda),
-            _ => Err(()),
+            "agenda" => return Ok(Self::Agenda),
+            "clear" => return Ok(Self::Clear),
+            "meetup" => {
+                for option in data.options {
+                    if let CommandDataOption::SubCommand { name, .. } = option {
+                        match name.as_str() {
+                            "enable" => return Ok(Self::Meetup(true)),
+                            "disable" => return Ok(Self::Meetup(false)),
+                            _ => (),
+                        }
+                    }
+                }
+            }
+            _ => (),
         }
+        Err(())
     }
 }
 
-async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, secret_channel: ChannelId) {
+async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, secret_channel: ChannelId, meetup_role: RoleId) {
     match interaction.0 {
         Interaction::Ping(_) => println!("pong (interaction)"),
         Interaction::ApplicationCommand(application_command) => {
@@ -156,6 +176,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, s
                 id,
                 member,
                 token,
+                guild_id,
                 ..
             } = *application_command;
             let response = if channel_id != secret_channel {
@@ -172,6 +193,49 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, s
                     }
                     Ok(InteractionCommand::Agenda) => {
                         get_agenda_string()
+                    }
+                    Ok(InteractionCommand::Clear) => {
+                        let prev = get_agenda_string();
+                        Agenda::clear();
+                        prev
+                    }
+                    Ok(InteractionCommand::Meetup(enable)) => {
+                        if let Some(member) = member {
+                            let has_meetup_role = member.roles.iter().any(|role| role == &meetup_role);
+                            if enable && has_meetup_role {
+                                "You already have this role".to_string()
+                            } else if !enable && !has_meetup_role {
+                                "You don't have this role".to_string()
+                            } else if enable {
+                                http
+                                    .add_guild_member_role(
+                                        guild_id.unwrap(),
+                                        member.user.unwrap().id,
+                                        meetup_role,
+                                    )
+                                    .reason("Requested by user")
+                                    .unwrap()
+                                    .exec()
+                                    .await
+                                    .unwrap();
+                                "ok".to_string()
+                            } else {
+                                http
+                                    .remove_guild_member_role(
+                                        guild_id.unwrap(),
+                                        member.user.unwrap().id,
+                                        meetup_role,
+                                    )
+                                    .reason("Requested by user")
+                                    .unwrap()
+                                    .exec()
+                                    .await
+                                    .unwrap();
+                                "ok".to_string()
+                            }
+                        } else {
+                            "Missing member".to_string()
+                        }
                     }
                     Err(_) => "Error parsing command".to_string(),
                 }
