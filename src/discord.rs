@@ -291,7 +291,7 @@ fn get_agenda_string() -> String {
             points
                 .iter()
                 .enumerate()
-                .map(|(i, point)| format!("{}. {}", i, point))
+                .map(|(i, point)| format!("{}. {}", i + 1, point))
                 .collect::<Vec<_>>()
                 .join("\n"),
         )
