@@ -22,17 +22,6 @@ impl fmt::Display for AgendaPoint {
     }
 }
 
-impl AgendaPoint {
-    #[allow(dead_code)]
-    pub fn to_add_message(&self) -> String {
-        format!(
-            "'{}' added by {}",
-            self.title,
-            self.adder,
-        )
-    }
-}
-
 #[derive(Debug, Clone)]
 #[derive(Deserialize, Serialize)]
 pub struct Agenda {

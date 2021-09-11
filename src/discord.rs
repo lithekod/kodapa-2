@@ -100,11 +100,12 @@ async fn handle_event(
     meetup_role: RoleId,
 ) {
     match event {
-        Event::ShardConnected(_) => {
-            println!("Connected on shard {}", shard_id);
-        }
+        Event::GatewayHeartbeatAck => (),
         Event::InteractionCreate(interaction) => {
             handle_interaction(*interaction, &http, secret_channel, meetup_role).await;
+        }
+        Event::ShardConnected(_) => {
+            println!("Connected on shard {}", shard_id);
         }
         // Other events here...
         event => {
@@ -189,7 +190,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, s
                             adder: member.and_then(|m| m.nick).unwrap_or_else(|| "?".to_string()),
                             timestamp: chrono::Local::now(),
                         });
-                        "ok".to_string()
+                        format!("Added {}", title)
                     }
                     Ok(InteractionCommand::Agenda) => {
                         get_agenda_string()
@@ -197,7 +198,7 @@ async fn handle_interaction(interaction: InteractionCreate, http: &HttpClient, s
                     Ok(InteractionCommand::Clear) => {
                         let prev = get_agenda_string();
                         Agenda::clear();
-                        prev
+                        format!("Previous agenda was:\n{}", prev)
                     }
                     Ok(InteractionCommand::Meetup(enable)) => {
                         if let Some(member) = member {
@@ -286,10 +287,11 @@ fn get_agenda_string() -> String {
         "Empty agenda".to_string()
     } else {
         format!(
-            "```{}```",
+            "{}",
             points
                 .iter()
-                .map(|point| format!("{}", point))
+                .enumerate()
+                .map(|(i, point)| format!("{}. {}", i, point))
                 .collect::<Vec<_>>()
                 .join("\n"),
         )
