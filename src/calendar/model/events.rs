@@ -10,7 +10,7 @@ use std::fmt;
 use url::Url;
 use yup_oauth2::AccessToken;
 
-use crate::{calendar::{parse_json_body, request}, impl_builder, impl_get};
+use crate::{calendar::{parse_json_body, request}, error::RequestError, impl_builder, impl_get};
 
 use super::GCalTimestamp;
 
@@ -68,9 +68,9 @@ impl EventsListRequest {
         self
     }
 
-    pub async fn request(self, base_url: &str, token: &AccessToken) -> Option<EventsListResponse> {
-        let url = self.to_url(base_url).ok()?;
-        parse_json_body(request(token, &url, Body::empty()).await?).await
+    pub async fn request(self, base_url: &str, token: &AccessToken) -> Result<EventsListResponse, RequestError> {
+        let url = self.to_url(base_url)?;
+        Ok(parse_json_body(request(token, &url, Body::empty()).await?).await.map_err(RequestError::ResponseError)?)
     }
 
     pub fn to_url(&self, base: &str) -> Result<Url, url::ParseError> {

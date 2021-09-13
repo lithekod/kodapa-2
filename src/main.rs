@@ -6,6 +6,7 @@ use self::agenda::AgendaPoint;
 mod agenda;
 mod calendar;
 mod discord;
+mod error;
 mod kodapa;
 
 #[allow(dead_code)]

@@ -7,7 +7,8 @@ use tokio::sync::mpsc;
 use url::Url;
 use yup_oauth2::AccessToken;
 
-use crate::calendar::model::Timestamp;
+use crate::{calendar::model::Timestamp, error::BodyParseError};
+use crate::error::RequestError;
 
 use self::model::events::{Event, EventsListRequest, EventsListResponse};
 
@@ -49,7 +50,13 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
         let end = now.checked_add_signed(Duration::minutes(60)).unwrap();
 
         // Try to find a styrelsemöte within 60 minutes.
-        let events = events(&token, calendar_id.clone(), now, end).await;
+        let events = match events(&token, calendar_id.clone(), now, end).await {
+            Ok(events) => events,
+            Err(e) => {
+                println!("{:?}", e);
+                continue;
+            }
+        };
         if let Some(meeting) = events
             .items()
             .iter()
@@ -67,7 +74,7 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
 
 }
 
-async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>, end: DateTime<Local>) -> EventsListResponse {
+async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>, end: DateTime<Local>) -> Result<EventsListResponse, RequestError> {
     let request = EventsListRequest::new(calendar_id)
         .max_results(50) // Should be enough to not warrant paging
         .order_by("startTime".to_string())
@@ -75,7 +82,7 @@ async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>
         .time_min(start)
         .time_max(end);
 
-    request.request(BASE_URL, token).await.unwrap()
+    Ok(request.request(BASE_URL, token).await?)
 }
 
 async fn token() -> Option<AccessToken> {
@@ -89,20 +96,19 @@ async fn token() -> Option<AccessToken> {
     authenticator.token(&SCOPES).await.ok()
 }
 
-async fn request(token: &AccessToken, url: &Url, body: Body) -> Option<Body> {
+async fn request(token: &AccessToken, url: &Url, body: Body) -> Result<Body, RequestError> {
     let request = Request::builder()
         .uri(url.as_str())
         .header("Authorization", format!("OAuth {}", token.as_str()))
-        .body(body)
-        .ok()?;
+        .body(body)?;
 
         let https = HttpsConnector::new();
         let client = Client::builder().build(https);
-        let response = client.request(request).await.ok()?;
-        Some(response.into_body())
+        let response = client.request(request).await?;
+        Ok(response.into_body())
 }
 
-async fn parse_json_body<T: DeserializeOwned>(body: Body) -> Option<T> {
-    let bytes = hyper::body::to_bytes(body).await.ok()?;
-    serde_json::from_slice(&bytes).ok()
+async fn parse_json_body<T: DeserializeOwned>(body: Body) -> Result<T, BodyParseError> {
+    let bytes = hyper::body::to_bytes(body).await.map_err(BodyParseError::BodyError)?;
+    Ok(serde_json::from_slice(&bytes)?)
 }
