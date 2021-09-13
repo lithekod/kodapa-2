@@ -1,5 +1,8 @@
 use std::error::Error;
-use tokio::{join, sync::{broadcast, mpsc}};
+use tokio::{
+    join,
+    sync::{broadcast, mpsc},
+};
 
 use self::agenda::AgendaPoint;
 

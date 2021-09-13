@@ -3,7 +3,7 @@ pub enum RequestError {
     HttpError(hyper::http::Error),
     HyperError(hyper::Error),
     ResponseError(BodyParseError),
-    UrlParseError(url::ParseError)
+    UrlParseError(url::ParseError),
 }
 
 impl From<hyper::http::Error> for RequestError {

@@ -1,6 +1,12 @@
-use tokio::{join, sync::{broadcast, mpsc}};
+use tokio::{
+    join,
+    sync::{broadcast, mpsc},
+};
 
-use crate::{agenda::{Agenda, AgendaPoint}, calendar};
+use crate::{
+    agenda::{Agenda, AgendaPoint},
+    calendar,
+};
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -33,14 +39,11 @@ async fn handle_agenda(mut receiver: mpsc::UnboundedReceiver<AgendaPoint>) {
 /// Receives notifications when a reminder should be sent and sends it.
 async fn handle_reminders(event_sender: broadcast::Sender<Event>) {
     let (calendar_tx, mut calendar_rx) = mpsc::unbounded_channel();
-    let (_e1, _e2) = join!(
-        calendar::handle(calendar_tx),
-        async {
-            while let Some(event) = calendar_rx.recv().await {
-                event_sender.send(Event::Reminder { event }).unwrap();
-            }
+    let (_e1, _e2) = join!(calendar::handle(calendar_tx), async {
+        while let Some(event) = calendar_rx.recv().await {
+            event_sender.send(Event::Reminder { event }).unwrap();
         }
-    );
+    });
 }
 
 fn _print_errors<T, U: std::fmt::Debug>(errs: &[Result<T, U>]) {

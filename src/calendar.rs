@@ -7,17 +7,15 @@ use tokio::sync::mpsc;
 use url::Url;
 use yup_oauth2::AccessToken;
 
-use crate::{calendar::model::Timestamp, error::BodyParseError};
-use crate::error::RequestError;
+use crate::calendar::model::Timestamp;
+use crate::error::{BodyParseError, RequestError};
 
 use self::model::events::{Event, EventsListRequest, EventsListResponse};
 
 pub mod model;
 
 const BASE_URL: &'static str = "https://www.googleapis.com/calendar/v3/";
-const SCOPES: [&'static str; 1] = [
-    "https://www.googleapis.com/auth/calendar",
-];
+const SCOPES: [&'static str; 1] = ["https://www.googleapis.com/auth/calendar"];
 
 pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
     let mut token = get_token().await.unwrap();
@@ -75,10 +73,14 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
             sender.send(meeting.clone()).unwrap();
         }
     }
-
 }
 
-async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>, end: DateTime<Local>) -> Result<EventsListResponse, RequestError> {
+async fn events(
+    token: &AccessToken,
+    calendar_id: String,
+    start: DateTime<Local>,
+    end: DateTime<Local>,
+) -> Result<EventsListResponse, RequestError> {
     let request = EventsListRequest::new(calendar_id)
         .max_results(50) // Should be enough to not warrant paging
         .order_by("startTime".to_string())
@@ -90,7 +92,9 @@ async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>
 }
 
 async fn get_token() -> Option<AccessToken> {
-    let secret = yup_oauth2::read_application_secret("client_secret.json").await.ok()?;
+    let secret = yup_oauth2::read_application_secret("client_secret.json")
+        .await
+        .ok()?;
     let authenticator = yup_oauth2::DeviceFlowAuthenticator::builder(secret)
         .persist_tokens_to_disk("tokens.json")
         .build()
@@ -106,13 +110,15 @@ async fn request(token: &AccessToken, url: &Url, body: Body) -> Result<Body, Req
         .header("Authorization", format!("OAuth {}", token.as_str()))
         .body(body)?;
 
-        let https = HttpsConnector::new();
-        let client = Client::builder().build(https);
-        let response = client.request(request).await?;
-        Ok(response.into_body())
+    let https = HttpsConnector::new();
+    let client = Client::builder().build(https);
+    let response = client.request(request).await?;
+    Ok(response.into_body())
 }
 
 async fn parse_json_body<T: DeserializeOwned>(body: Body) -> Result<T, BodyParseError> {
-    let bytes = hyper::body::to_bytes(body).await.map_err(BodyParseError::BodyError)?;
+    let bytes = hyper::body::to_bytes(body)
+        .await
+        .map_err(BodyParseError::BodyError)?;
     Ok(serde_json::from_slice(&bytes)?)
 }

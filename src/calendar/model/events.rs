@@ -2,7 +2,6 @@
 //!
 //! See `https://developers.google.com/calendar/api/v3/reference/events`.
 
-
 use chrono::{DateTime, TimeZone};
 use hyper::Body;
 use serde::{Deserialize, Serialize};
@@ -10,7 +9,11 @@ use std::fmt;
 use url::Url;
 use yup_oauth2::AccessToken;
 
-use crate::{calendar::{parse_json_body, request}, error::RequestError, impl_builder, impl_get};
+use crate::{
+    calendar::{parse_json_body, request},
+    error::RequestError,
+    impl_builder, impl_get,
+};
 
 use super::GCalTimestamp;
 
@@ -54,7 +57,9 @@ impl EventsListRequest {
         Tz: TimeZone,
         Tz::Offset: fmt::Display,
     {
-        self.time_max = time.into().map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%SZ").to_string());
+        self.time_max = time
+            .into()
+            .map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%SZ").to_string());
         self
     }
 
@@ -64,13 +69,23 @@ impl EventsListRequest {
         Tz: TimeZone,
         Tz::Offset: fmt::Display,
     {
-        self.time_min = time.into().map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%SZ").to_string());
+        self.time_min = time
+            .into()
+            .map(|dt| dt.naive_utc().format("%Y-%m-%dT%H:%M:%SZ").to_string());
         self
     }
 
-    pub async fn request(self, base_url: &str, token: &AccessToken) -> Result<EventsListResponse, RequestError> {
+    pub async fn request(
+        self,
+        base_url: &str,
+        token: &AccessToken,
+    ) -> Result<EventsListResponse, RequestError> {
         let url = self.to_url(base_url)?;
-        Ok(parse_json_body(request(token, &url, Body::empty()).await?).await.map_err(RequestError::ResponseError)?)
+        let request = request(token, &url, Body::empty()).await?;
+        let body = parse_json_body(request)
+            .await
+            .map_err(RequestError::ResponseError)?;
+        Ok(body)
     }
 
     pub fn to_url(&self, base: &str) -> Result<Url, url::ParseError> {
@@ -87,7 +102,10 @@ impl EventsListRequest {
                     .join("&")
             )
         };
-        Url::parse(&format!("{}calendars/{}/events{}", base, self.calendar_id, params))
+        Url::parse(&format!(
+            "{}calendars/{}/events{}",
+            base, self.calendar_id, params
+        ))
     }
 
     pub fn params(&self) -> Vec<(String, String)> {
@@ -115,8 +133,7 @@ impl EventsListRequest {
     }
 }
 
-#[derive(Debug)]
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventsListResponse {
     items: Vec<Event>,
@@ -124,13 +141,10 @@ pub struct EventsListResponse {
 }
 
 impl EventsListResponse {
-    impl_get!(
-        items: &[Event]
-    );
+    impl_get!(items: &[Event]);
 }
 
-#[derive(Debug, Clone)]
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
     start: GCalTimestamp,

@@ -2,8 +2,7 @@ use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use std::{fmt, fs};
 
-#[derive(Clone, Debug)]
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AgendaPoint {
     pub title: String,
     pub adder: String,
@@ -22,17 +21,14 @@ impl fmt::Display for AgendaPoint {
     }
 }
 
-#[derive(Debug, Clone)]
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Agenda {
     pub points: Vec<AgendaPoint>,
 }
 
 impl Agenda {
     pub fn new_empty() -> Self {
-        Self {
-            points: Vec::new(),
-        }
+        Self { points: Vec::new() }
     }
 
     pub fn read() -> Self {
