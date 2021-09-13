@@ -20,7 +20,7 @@ const SCOPES: [&'static str; 1] = [
 ];
 
 pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
-    let token = token().await.unwrap();
+    let mut token = get_token().await.unwrap();
     let calendar_id = std::env::var("CALENDAR_ID").expect("missing CALENDAR_ID");
 
     let mut last_fire = None;
@@ -40,6 +40,10 @@ pub async fn handle(sender: mpsc::UnboundedSender<Event>) {
     // using sync-tokens while concurrently waiting for the next meeting.
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+        if token.is_expired() {
+            token = get_token().await.unwrap();
+        }
 
         let now = Local::now();
         if last_fire.map(|date| now.date() == date).unwrap_or(false) {
@@ -85,7 +89,7 @@ async fn events(token: &AccessToken, calendar_id: String, start: DateTime<Local>
     Ok(request.request(BASE_URL, token).await?)
 }
 
-async fn token() -> Option<AccessToken> {
+async fn get_token() -> Option<AccessToken> {
     let secret = yup_oauth2::read_application_secret("client_secret.json").await.ok()?;
     let authenticator = yup_oauth2::DeviceFlowAuthenticator::builder(secret)
         .persist_tokens_to_disk("tokens.json")
