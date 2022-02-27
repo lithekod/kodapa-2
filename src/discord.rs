@@ -11,14 +11,20 @@ use twilight_gateway::{
     Event,
 };
 use twilight_http::{request::AuditLogReason, Client as HttpClient};
-use twilight_model::application::interaction::application_command::{
-    CommandData, CommandDataOption,
-};
-use twilight_model::application::interaction::{ApplicationCommand, Interaction};
-use twilight_model::gateway::{payload::InteractionCreate, Intents};
 use twilight_model::{
-    application::callback::{CallbackData, InteractionResponse},
-    id::{ChannelId, RoleId},
+    application::{
+        callback::{CallbackData, InteractionResponse},
+        interaction::{
+            application_command::{CommandData, CommandDataOption, CommandOptionValue},
+            ApplicationCommand, Interaction,
+        },
+    },
+    gateway::payload::incoming::InteractionCreate,
+    gateway::Intents,
+    id::{
+        marker::{ChannelMarker, RoleMarker},
+        Id,
+    },
 };
 
 use crate::{
@@ -32,14 +38,15 @@ pub async fn handle(
     _agenda_sender: mpsc::UnboundedSender<AgendaPoint>,
     event_receiver: broadcast::Receiver<kodapa::Event>,
 ) {
-    let http = HttpClient::new(token.clone());
-    let secret_channel = ChannelId(
+    let http = Box::new(HttpClient::new(token.clone()));
+    let http = Box::leak(http) as &HttpClient;
+    let secret_channel: Id<ChannelMarker> = Id::new(
         std::env::var("DISCORD_SECRET_CHANNEL")
             .expect("missing DISCORD_SECRET_CHANNEL")
             .parse()
             .unwrap(),
     );
-    let meetup_role = RoleId(
+    let meetup_role: Id<RoleMarker> = Id::new(
         std::env::var("DISCORD_MEETUP_ROLE_ID")
             .expect("missing DISCORD_MEETUP_ROLE_ID")
             .parse()
@@ -47,15 +54,15 @@ pub async fn handle(
     );
 
     let _e1 = join!(
-        handle_discord_events(&token, &http, secret_channel, meetup_role),
-        handle_reminder_events(event_receiver, &http, secret_channel),
+        handle_discord_events(token, http, secret_channel, meetup_role),
+        handle_reminder_events(event_receiver, http, secret_channel),
     );
 }
 
 async fn handle_reminder_events(
     mut receiver: broadcast::Receiver<kodapa::Event>,
     http: &HttpClient,
-    secret_channel: ChannelId,
+    secret_channel: Id<ChannelMarker>,
 ) {
     while let Ok(event) = receiver.recv().await {
         match event {
@@ -72,10 +79,10 @@ async fn handle_reminder_events(
 }
 
 async fn handle_discord_events(
-    token: &str,
-    http: &HttpClient,
-    secret_channel: ChannelId,
-    meetup_role: RoleId,
+    token: String,
+    http: &'static HttpClient,
+    secret_channel: Id<ChannelMarker>,
+    meetup_role: Id<RoleMarker>,
 ) {
     // This is the default scheme. It will automatically create as many
     // shards as is suggested by Discord.
@@ -89,11 +96,11 @@ async fn handle_discord_events(
         .unwrap();
 
     // Start up the cluster.
-    let cluster_spawn = cluster.clone();
+    // let cluster_spawn = cluster.clone();
 
     // Start all shards in the cluster in the background.
     tokio::spawn(async move {
-        cluster_spawn.up().await;
+        cluster.up().await;
     });
 
     // Since we only care about new messages, make the cache only
@@ -110,7 +117,7 @@ async fn handle_discord_events(
         tokio::spawn(handle_event(
             shard_id,
             event,
-            http.clone(),
+            http,
             secret_channel,
             meetup_role,
         ));
@@ -120,9 +127,9 @@ async fn handle_discord_events(
 async fn handle_event(
     shard_id: u64,
     event: Event,
-    http: HttpClient,
-    secret_channel: ChannelId,
-    meetup_role: RoleId,
+    http: &HttpClient,
+    secret_channel: Id<ChannelMarker>,
+    meetup_role: Id<RoleMarker>,
 ) {
     match event {
         Event::GatewayHeartbeatAck => (),
@@ -160,7 +167,8 @@ impl TryFrom<CommandData> for InteractionCommand {
                     .options
                     .iter()
                     .find_map(|option| {
-                        if let CommandDataOption::String { name, value } = option {
+                        let CommandDataOption { name, value, .. } = option;
+                        if let CommandOptionValue::String(value) = value {
                             if name == "title" {
                                 return Some(value);
                             }
@@ -175,12 +183,11 @@ impl TryFrom<CommandData> for InteractionCommand {
             "clear" => return Ok(Self::Clear),
             "meetup" => {
                 for option in data.options {
-                    if let CommandDataOption::SubCommand { name, .. } = option {
-                        match name.as_str() {
-                            "enable" => return Ok(Self::Meetup(true)),
-                            "disable" => return Ok(Self::Meetup(false)),
-                            _ => (),
-                        }
+                    let CommandDataOption { name, .. } = option;
+                    match name.as_str() {
+                        "enable" => return Ok(Self::Meetup(true)),
+                        "disable" => return Ok(Self::Meetup(false)),
+                        _ => (),
                     }
                 }
             }
@@ -193,8 +200,8 @@ impl TryFrom<CommandData> for InteractionCommand {
 async fn handle_interaction(
     interaction: InteractionCreate,
     http: &HttpClient,
-    secret_channel: ChannelId,
-    meetup_role: RoleId,
+    secret_channel: Id<ChannelMarker>,
+    meetup_role: Id<RoleMarker>,
 ) {
     match interaction.0 {
         Interaction::Ping(_) => println!("pong (interaction)"),
@@ -269,21 +276,31 @@ async fn handle_interaction(
                 }
             };
             println!("response: {:?}", response);
-            http.interaction_callback(
-                id,
-                &token,
-                &InteractionResponse::ChannelMessageWithSource(CallbackData {
-                    allowed_mentions: None,
-                    components: None,
-                    content: Some(response),
-                    embeds: Default::default(),
-                    flags: None,
-                    tts: None,
-                }),
-            )
-            .exec()
-            .await
-            .unwrap();
+            let application_id = http
+                .current_user_application()
+                .exec()
+                .await
+                .unwrap()
+                .model()
+                .await
+                .unwrap()
+                .id;
+            http.interaction(application_id)
+                .interaction_callback(
+                    id,
+                    &token,
+                    &InteractionResponse::ChannelMessageWithSource(CallbackData {
+                        allowed_mentions: None,
+                        components: None,
+                        content: Some(response),
+                        embeds: Default::default(),
+                        flags: None,
+                        tts: None,
+                    }),
+                )
+                .exec()
+                .await
+                .unwrap();
         }
         i => println!("unhandled interaction: {:?}", i),
     }
