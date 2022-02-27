@@ -223,7 +223,7 @@ async fn handle_interaction(
                         Agenda::push_write(AgendaPoint {
                             title: title.to_string(),
                             adder: member
-                                .and_then(|m| m.nick)
+                                .and_then(|m| m.nick.or(m.user.map(|user| user.name)))
                                 .unwrap_or_else(|| "?".to_string()),
                             timestamp: chrono::Local::now(),
                         });
