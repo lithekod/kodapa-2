@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
-use std::{fmt, fs};
+use std::{fmt, fs, ops::RangeBounds};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AgendaPoint {
@@ -51,8 +51,15 @@ impl Agenda {
         agenda.write();
     }
 
-    pub fn clear() {
-        let agenda = Agenda::new_empty();
+    pub fn remove_one(idx: usize) {
+        let mut agenda = Self::read();
+        agenda.points.remove(idx);
+        agenda.write();
+    }
+
+    pub fn remove_many(range: impl RangeBounds<usize>) {
+        let mut agenda = Self::read();
+        agenda.points.drain(range);
         agenda.write();
     }
 }

@@ -1,4 +1,7 @@
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    ops::RangeBounds,
+};
 
 use futures_util::stream::StreamExt;
 use tokio::{
@@ -153,8 +156,9 @@ async fn handle_event(
 enum InteractionCommand {
     Add { title: String },
     Agenda,
-    Clear,
     Meetup(bool), // enable or disable
+    RemoveOne(usize),
+    RemoveMany(Option<usize>, Option<usize>),
 }
 
 impl TryFrom<CommandData> for InteractionCommand {
@@ -180,7 +184,7 @@ impl TryFrom<CommandData> for InteractionCommand {
                 return Ok(Self::Add { title });
             }
             "agenda" => return Ok(Self::Agenda),
-            "clear" => return Ok(Self::Clear),
+            "clear" => return Ok(Self::RemoveMany(None, None)),
             "meetup" => {
                 for option in data.options {
                     let CommandDataOption { name, .. } = option;
@@ -232,7 +236,7 @@ async fn handle_interaction(
                     Ok(InteractionCommand::Agenda) => get_agenda_string(),
                     Ok(InteractionCommand::Clear) => {
                         let prev = get_agenda_string();
-                        Agenda::clear();
+                        Agenda::remove_all();
                         format!("Previous agenda was:\n{}", prev)
                     }
                     Ok(InteractionCommand::Meetup(enable)) => {
