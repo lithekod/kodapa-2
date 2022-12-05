@@ -1,4 +1,7 @@
-use std::convert::{TryFrom, TryInto};
+use std::{
+    convert::{TryFrom, TryInto},
+    ops::RangeBounds,
+};
 
 use color_eyre::eyre::{anyhow, bail};
 use futures_util::stream::StreamExt;
@@ -253,14 +256,19 @@ async fn handle_interaction(
                     }
                     Ok(InteractionCommand::Agenda) => get_agenda_string(),
                     Ok(InteractionCommand::RemoveOne(n)) => {
-                        let prev = get_agenda_string();
-                        Agenda::remove_one(n);
-                        format!("Previous agenda was:\n{}", prev)
+                        let removed = get_agenda_points(n..=n);
+                        match Agenda::remove_one(n) {
+                            Ok(_) => format!("Removed:\n{}", removed),
+                            Err(e) => e,
+                        }
                     }
                     Ok(InteractionCommand::RemoveMany(lower, upper)) => {
-                        let prev = get_agenda_string();
-                        Agenda::remove_many(GenericRange(lower, upper));
-                        format!("Previous agenda was:\n{}", prev)
+                        let range = GenericRange(lower, upper);
+                        let removed = get_agenda_points(range.clone());
+                        match Agenda::remove_many(range) {
+                            Ok(_) => format!("Removed:\n{}", removed),
+                            Err(e) => e,
+                        }
                     }
                     Ok(InteractionCommand::Meetup(enable)) => {
                         if let Some(member) = member {
@@ -367,5 +375,18 @@ fn get_agenda_string() -> String {
                 .collect::<Vec<_>>()
                 .join("\n"),
         )
+    }
+}
+
+fn get_agenda_points(range: impl RangeBounds<usize>) -> String {
+    let mut points = Agenda::read().points;
+    if points.is_empty() {
+        "Empty agenda".to_string()
+    } else {
+        points
+            .drain(range)
+            .map(|point| format!("- {}", point))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }

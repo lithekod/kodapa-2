@@ -18,6 +18,7 @@ mod kodapa;
 #[allow(dead_code)]
 type Result<T> = ::std::result::Result<T, Box<dyn Error + Send + Sync>>;
 
+#[derive(Clone)]
 struct GenericRange(Option<usize>, Option<usize>);
 
 impl RangeBounds<usize> for GenericRange {
@@ -31,7 +32,7 @@ impl RangeBounds<usize> for GenericRange {
     fn end_bound(&self) -> Bound<&usize> {
         self.1
             .as_ref()
-            .map(Bound::Excluded)
+            .map(Bound::Included)
             .unwrap_or(Bound::Unbounded)
     }
 }
