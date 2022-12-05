@@ -3,7 +3,7 @@ use std::{
     ops::RangeBounds,
 };
 
-use color_eyre::eyre::{anyhow, bail};
+use color_eyre::eyre::{anyhow, bail, Context};
 use futures_util::stream::StreamExt;
 use tokio::{
     join,
@@ -207,14 +207,12 @@ impl TryFrom<CommandData> for InteractionCommand {
 
                 if which.contains('-') {
                     let parts = which.split_once('-').unwrap();
-                    let lower = Some(parts.0.parse::<usize>().expect("not a number") - 1);
-                    let upper = Some(parts.1.parse::<usize>().expect("not a number") - 1);
+                    let lower = Some(parts.0.parse::<usize>()? - 1);
+                    let upper = Some(parts.1.parse::<usize>()? - 1);
 
                     Ok(Self::RemoveMany(lower, upper))
                 } else {
-                    Ok(Self::RemoveOne(
-                        which.parse::<usize>().expect("not a number") - 1,
-                    ))
+                    Ok(Self::RemoveOne(which.parse::<usize>()? - 1))
                 }
             }
             _ => bail!("unknown command {}", data.name.as_str()),
