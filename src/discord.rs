@@ -3,7 +3,7 @@ use std::{
     ops::RangeBounds,
 };
 
-use color_eyre::eyre::{anyhow, bail, Context};
+use color_eyre::eyre::{anyhow, bail};
 use futures_util::stream::StreamExt;
 use tokio::{
     join,
