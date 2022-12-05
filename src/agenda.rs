@@ -47,16 +47,28 @@ impl Agenda {
         agenda.write();
     }
 
-    pub fn remove_one(idx: usize) {
+    pub fn remove_one(idx: usize) -> Result<(), String> {
         let mut agenda = Self::read();
+        if idx >= agenda.points.len() {
+            return Err("out of bounds".to_string());
+        }
         agenda.points.remove(idx);
         agenda.write();
+        Ok(())
     }
 
-    pub fn remove_many(range: impl RangeBounds<usize>) {
+    pub fn remove_many(range: impl RangeBounds<usize>) -> Result<(), String> {
         let mut agenda = Self::read();
+        if agenda
+            .points
+            .get((range.start_bound().cloned(), range.end_bound().cloned()))
+            .is_none()
+        {
+            return Err("invalid range".to_string());
+        }
         agenda.points.drain(range);
         agenda.write();
+        Ok(())
     }
 }
 

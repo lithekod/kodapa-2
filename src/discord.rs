@@ -186,7 +186,6 @@ impl TryFrom<CommandData> for InteractionCommand {
                 Ok(Self::Add { title })
             }
             "agenda" => Ok(Self::Agenda),
-            "clear" => Ok(Self::RemoveMany(None, None)),
             "meetup" => {
                 for option in data.options {
                     let CommandDataOption { name, .. } = option;
@@ -200,17 +199,19 @@ impl TryFrom<CommandData> for InteractionCommand {
             }
             "remove" => {
                 let what = find_option("what", data.options.iter())
-                    .ok_or_else(|| anyhow!("nothing to remove"))?
+                    .unwrap()
                     .to_string();
 
                 if what.contains('-') {
-                    let parts = what.split_once("-").unwrap();
-                    let lower = Some(parts.0.parse().expect("not a number"));
-                    let upper = Some(parts.1.parse().expect("not a number"));
+                    let parts = what.split_once('-').unwrap();
+                    let lower = Some(parts.0.parse::<usize>().expect("not a number") - 1);
+                    let upper = Some(parts.1.parse::<usize>().expect("not a number") - 1);
 
                     Ok(Self::RemoveMany(lower, upper))
                 } else {
-                    Ok(Self::RemoveOne(what.parse().expect("not a number")))
+                    Ok(Self::RemoveOne(
+                        what.parse::<usize>().expect("not a number") - 1,
+                    ))
                 }
             }
             _ => bail!("unknown command {}", data.name.as_str()),

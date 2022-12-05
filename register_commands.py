@@ -28,30 +28,42 @@ COMMANDS = {
         "options": [],
         "default_permission": False,
     },
+    "remove": {
+        "name": "remove",
+        "description": "Remove one or more items from the agenda",
+        "options": [
+            {
+                "name": "which",
+                "description": "Which item(s) to remove",
+                "type": 3,
+                "required": True,
+            }
+        ]
+    },
     "clear": {
         "name": "clear",
         "description": "Clear the current agenda",
         "options": [],
         "default_permission": False,
     },
-    "meetup": {
-        "name": "meetup",
-        "description": "Configure meetup notifications",
-        "options": [
-            {
-                "name": "enable",
-                "description": "Enable meetup notifications",
-                "type": 1,
-                "options": [],
-            },
-            {
-                "name": "disable",
-                "description": "Disable meetup notifications",
-                "type": 1,
-                "options": [],
-            },
-        ],
-    },
+    # "meetup": {
+    #     "name": "meetup",
+    #     "description": "Configure meetup notifications",
+    #     "options": [
+    #         {
+    #             "name": "enable",
+    #             "description": "Enable meetup notifications",
+    #             "type": 1,
+    #             "options": [],
+    #         },
+    #         {
+    #             "name": "disable",
+    #             "description": "Disable meetup notifications",
+    #             "type": 1,
+    #             "options": [],
+    #         },
+    #     ],
+    # },
 }
 
 
@@ -99,9 +111,10 @@ def allow_command_for_role(command_id, role_id):
 def remove_command(id):
     url = f"{BASE_URL}/applications/{config.DISCORD_APPLICATION_ID}/guilds/{config.DISCORD_GUILD_ID}/commands/{id}"
     resp = requests.delete(url, headers=HEADERS)
+    print(resp)
     if resp.status_code != 200:
         print(json.dumps(resp.json(), indent=2))
-    print(resp)
 
 
-update_commands(["meetup"])
+update_commands(["remove"])
+fetch_commands()
