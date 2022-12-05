@@ -198,19 +198,19 @@ impl TryFrom<CommandData> for InteractionCommand {
                 todo!()
             }
             "remove" => {
-                let what = find_option("what", data.options.iter())
+                let which = find_option("which", data.options.iter())
                     .unwrap()
                     .to_string();
 
-                if what.contains('-') {
-                    let parts = what.split_once('-').unwrap();
+                if which.contains('-') {
+                    let parts = which.split_once('-').unwrap();
                     let lower = Some(parts.0.parse::<usize>().expect("not a number") - 1);
                     let upper = Some(parts.1.parse::<usize>().expect("not a number") - 1);
 
                     Ok(Self::RemoveMany(lower, upper))
                 } else {
                     Ok(Self::RemoveOne(
-                        what.parse::<usize>().expect("not a number") - 1,
+                        which.parse::<usize>().expect("not a number") - 1,
                     ))
                 }
             }

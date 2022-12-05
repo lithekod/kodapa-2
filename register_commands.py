@@ -116,5 +116,5 @@ def remove_command(id):
         print(json.dumps(resp.json(), indent=2))
 
 
-update_commands(["remove"])
+# update_commands(["remove"])
 fetch_commands()
