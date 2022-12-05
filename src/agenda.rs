@@ -27,10 +27,6 @@ pub struct Agenda {
 }
 
 impl Agenda {
-    pub fn new_empty() -> Self {
-        Self { points: Vec::new() }
-    }
-
     pub fn read() -> Self {
         match fs::read_to_string("agenda.json") {
             Ok(s) => serde_json::from_str(&s).expect("Error parsing agenda.json"),

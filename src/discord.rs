@@ -1,8 +1,6 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    ops::RangeBounds,
-};
+use std::convert::{TryFrom, TryInto};
 
+use color_eyre::eyre::{anyhow, bail};
 use futures_util::stream::StreamExt;
 use tokio::{
     join,
@@ -33,7 +31,7 @@ use twilight_model::{
 use crate::{
     agenda::{Agenda, AgendaPoint},
     calendar::{self, model::Timestamp},
-    kodapa,
+    kodapa, GenericRange,
 };
 
 pub async fn handle(
@@ -149,6 +147,21 @@ async fn handle_event(
     }
 }
 
+fn find_option<'a>(
+    search_name: &str,
+    iter: impl IntoIterator<Item = &'a CommandDataOption>,
+) -> Option<&'a str> {
+    iter.into_iter().find_map(|option| {
+        let CommandDataOption { name, value, .. } = option;
+        if let CommandOptionValue::String(value) = value {
+            if name == search_name {
+                return Some(value.as_str());
+            }
+        }
+        None
+    })
+}
+
 /// The kinds of interactions we support. Should match the file
 /// `register_commands.py` which needs to be run if any changes to commands is
 /// to be made.
@@ -162,29 +175,18 @@ enum InteractionCommand {
 }
 
 impl TryFrom<CommandData> for InteractionCommand {
-    type Error = ();
+    type Error = color_eyre::Report;
 
     fn try_from(data: CommandData) -> Result<Self, Self::Error> {
         match data.name.as_str() {
             "add" => {
-                let title = data
-                    .options
-                    .iter()
-                    .find_map(|option| {
-                        let CommandDataOption { name, value, .. } = option;
-                        if let CommandOptionValue::String(value) = value {
-                            if name == "title" {
-                                return Some(value);
-                            }
-                        }
-                        None
-                    })
-                    .ok_or(())?
+                let title = find_option("title", data.options.iter())
+                    .ok_or_else(|| anyhow!("no title"))?
                     .to_string();
-                return Ok(Self::Add { title });
+                Ok(Self::Add { title })
             }
-            "agenda" => return Ok(Self::Agenda),
-            "clear" => return Ok(Self::RemoveMany(None, None)),
+            "agenda" => Ok(Self::Agenda),
+            "clear" => Ok(Self::RemoveMany(None, None)),
             "meetup" => {
                 for option in data.options {
                     let CommandDataOption { name, .. } = option;
@@ -194,10 +196,25 @@ impl TryFrom<CommandData> for InteractionCommand {
                         _ => (),
                     }
                 }
+                todo!()
             }
-            _ => (),
+            "remove" => {
+                let what = find_option("what", data.options.iter())
+                    .ok_or_else(|| anyhow!("nothing to remove"))?
+                    .to_string();
+
+                if what.contains('-') {
+                    let parts = what.split_once("-").unwrap();
+                    let lower = Some(parts.0.parse().expect("not a number"));
+                    let upper = Some(parts.1.parse().expect("not a number"));
+
+                    Ok(Self::RemoveMany(lower, upper))
+                } else {
+                    Ok(Self::RemoveOne(what.parse().expect("not a number")))
+                }
+            }
+            _ => bail!("unknown command {}", data.name.as_str()),
         }
-        Err(())
     }
 }
 
@@ -234,9 +251,14 @@ async fn handle_interaction(
                         format!("Added {}", title)
                     }
                     Ok(InteractionCommand::Agenda) => get_agenda_string(),
-                    Ok(InteractionCommand::Clear) => {
+                    Ok(InteractionCommand::RemoveOne(n)) => {
                         let prev = get_agenda_string();
-                        Agenda::remove_all();
+                        Agenda::remove_one(n);
+                        format!("Previous agenda was:\n{}", prev)
+                    }
+                    Ok(InteractionCommand::RemoveMany(lower, upper)) => {
+                        let prev = get_agenda_string();
+                        Agenda::remove_many(GenericRange(lower, upper));
                         format!("Previous agenda was:\n{}", prev)
                     }
                     Ok(InteractionCommand::Meetup(enable)) => {
