@@ -1,4 +1,7 @@
-use std::error::Error;
+use std::{
+    error::Error,
+    ops::{Bound, RangeBounds},
+};
 use tokio::{
     join,
     sync::{broadcast, mpsc},
@@ -15,7 +18,27 @@ mod kodapa;
 #[allow(dead_code)]
 type Result<T> = ::std::result::Result<T, Box<dyn Error + Send + Sync>>;
 
+#[derive(Clone)]
+struct GenericRange(Option<usize>, Option<usize>);
+
+impl RangeBounds<usize> for GenericRange {
+    fn start_bound(&self) -> Bound<&usize> {
+        self.0
+            .as_ref()
+            .map(Bound::Included)
+            .unwrap_or(Bound::Unbounded)
+    }
+
+    fn end_bound(&self) -> Bound<&usize> {
+        self.1
+            .as_ref()
+            .map(Bound::Included)
+            .unwrap_or(Bound::Unbounded)
+    }
+}
+
 fn main() {
+    color_eyre::install().unwrap();
     let discord_token = std::env::var("DISCORD_BOT_TOKEN").expect("missing DISCORD_BOT_TOKEN");
 
     let (agenda_sender, agenda_receiver) = mpsc::unbounded_channel::<AgendaPoint>();

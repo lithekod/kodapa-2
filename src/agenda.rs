@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
-use std::{fmt, fs};
+use std::{fmt, fs, ops::RangeBounds};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AgendaPoint {
@@ -27,10 +27,6 @@ pub struct Agenda {
 }
 
 impl Agenda {
-    pub fn new_empty() -> Self {
-        Self { points: Vec::new() }
-    }
-
     pub fn read() -> Self {
         match fs::read_to_string("agenda.json") {
             Ok(s) => serde_json::from_str(&s).expect("Error parsing agenda.json"),
@@ -51,9 +47,28 @@ impl Agenda {
         agenda.write();
     }
 
-    pub fn clear() {
-        let agenda = Agenda::new_empty();
+    pub fn remove_one(idx: usize) -> Result<(), String> {
+        let mut agenda = Self::read();
+        if idx >= agenda.points.len() {
+            return Err("out of bounds".to_string());
+        }
+        agenda.points.remove(idx);
         agenda.write();
+        Ok(())
+    }
+
+    pub fn remove_many(range: impl RangeBounds<usize>) -> Result<(), String> {
+        let mut agenda = Self::read();
+        if agenda
+            .points
+            .get((range.start_bound().cloned(), range.end_bound().cloned()))
+            .is_none()
+        {
+            return Err("invalid range".to_string());
+        }
+        agenda.points.drain(range);
+        agenda.write();
+        Ok(())
     }
 }
 
